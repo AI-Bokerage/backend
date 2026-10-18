@@ -112,7 +112,11 @@ const bootstrap = async (): Promise<void> => {
       void shutdown('SIGTERM');
     });
   } catch (error) {
-    logger.fatal({ error }, 'Failed to bootstrap server');
+    // The reason in the message itself: log viewers (Railway) show only the message line.
+    logger.fatal(
+      { error },
+      `Failed to bootstrap server: ${error instanceof Error ? error.message : String(error)}`,
+    );
     process.exit(1);
   }
 };
