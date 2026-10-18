@@ -1,0 +1,146 @@
+# The whole CRM on any single Docker host (AWS EC2, a VPS, Oracle Cloud, ...). On the server, next to
+# this file in /opt/crm:
+#   .env               CRM_DOMAIN (Caddy) and the image tags (written by deploy.sh)
+#   services/*.env     each service's variables, made by make-env.py --host-template "{name}"
+#
+# The same service names, images, ports, volumes and services/*.env work on other platforms too
+# (Railway: RAILWAY.md); README.md lists them. Only Caddy is reachable from outside (80/443).
+
+x-ai: &ai
+  init: true
+  restart: unless-stopped
+  stop_grace_period: 40s
+  depends_on:
+    postgres: { condition: service_healthy }
+    rabbitmq: { condition: service_started }
+
+services:
+  # ── Public entry: HTTPS (automatic Let's Encrypt) → frontend, /api → backend & auth ──
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      CRM_DOMAIN: ${CRM_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+  # ── Infrastructure ──
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    env_file: services/postgres.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/01-databases.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    restart: unless-stopped
+    env_file: services/rabbitmq.env
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  clamav:
+    image: clamav/clamav-debian:1.4
+    restart: unless-stopped
+    volumes:
+      - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+      - clamav_db:/var/lib/clamav
+
+  # ── The CRM (backend + frontend repos) ──
+  web:
+    image: ghcr.io/ai-bokerage/crm-frontend:${FRONTEND_TAG:-not-deployed-yet}
+    restart: unless-stopped
+    env_file: services/web.env
+
+  app:
+    image: ghcr.io/ai-bokerage/crm-backend:${BACKEND_TAG:-not-deployed-yet}
+    restart: unless-stopped
+    env_file: services/app.env
+    volumes:
+      - documents:/data/documents
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  modauth:
+    image: ghcr.io/ai-bokerage/crm-modauth:${BACKEND_TAG:-not-deployed-yet}
+    restart: unless-stopped
+    env_file: services/modauth.env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  tenant:
+    image: ghcr.io/ai-bokerage/crm-tenant:${BACKEND_TAG:-not-deployed-yet}
+    restart: unless-stopped
+    env_file: services/tenant.env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # ── AI services (AI-service repo); each migrates its own database on start ──
+  gateway:
+    <<: *ai
+    image: ghcr.io/ai-bokerage/crm-ai-gateway:${AI_TAG:-not-deployed-yet}
+    env_file: services/gateway.env
+    command: ['python', '-m', 'broker_ai_common.launcher', 'gateway_svc', '--port', '4201', '--no-worker']
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  voice:
+    <<: *ai
+    image: ghcr.io/ai-bokerage/crm-ai-voice:${AI_TAG:-not-deployed-yet}
+    env_file: services/voice.env
+    command: ['python', '-m', 'broker_ai_common.launcher', 'voice_svc', '--port', '4202']
+    volumes:
+      - voice_audio:/data/audio
+
+  docread:
+    <<: *ai
+    image: ghcr.io/ai-bokerage/crm-ai-docread:${AI_TAG:-not-deployed-yet}
+    env_file: services/docread.env
+    command: ['python', '-m', 'broker_ai_common.launcher', 'docread_svc', '--port', '4203']
+    volumes:
+      - docread_files:/data/documents
+
+  notes:
+    <<: *ai
+    image: ghcr.io/ai-bokerage/crm-ai-notes:${AI_TAG:-not-deployed-yet}
+    env_file: services/notes.env
+    command: ['python', '-m', 'broker_ai_common.launcher', 'notes_svc', '--port', '4204']
+
+  email:
+    <<: *ai
+    image: ghcr.io/ai-bokerage/crm-ai-email:${AI_TAG:-not-deployed-yet}
+    env_file: services/email.env
+    command: ['python', '-m', 'broker_ai_common.launcher', 'email_svc', '--port', '4205']
+
+  assistant:
+    <<: *ai
+    image: ghcr.io/ai-bokerage/crm-ai-assistant:${AI_TAG:-not-deployed-yet}
+    env_file: services/assistant.env
+    command: ['python', '-m', 'broker_ai_common.launcher', 'assistant_svc', '--port', '4206']
+
+  search:
+    <<: *ai
+    image: ghcr.io/ai-bokerage/crm-ai-search:${AI_TAG:-not-deployed-yet}
+    env_file: services/search.env
+    command: ['python', '-m', 'broker_ai_common.launcher', 'search_svc', '--port', '4207']
+
+volumes:
+  caddy_data:
+  postgres_data:
+  rabbitmq_data:
+  clamav_db:
+  documents:
+  voice_audio:
+  docread_files:

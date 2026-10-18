@@ -9,11 +9,8 @@ coverage
 **/.gradle
 **/build
 
-# gen-sup-starter/gen-usg-starter's own build output IS needed — consumed as
-# `file:` dependencies (package.json main/exports point at dist/index.js),
-# not built inside this app's own Dockerfile. Re-included despite the bare
-# `dist` pattern above, which would otherwise match these nested paths too.
-!lib/Gen_Sup-main/packages/gen-sup-starter/dist
-!lib/Gen_Usg-main/packages/gen-usg-starter/dist
+# gen-sup-starter is built inside the Dockerfile (its `libs` stage), so a local dist/ or
+# node_modules/ under lib/ is never sent; gen-usg-starter is unused at runtime.
+**/node_modules
 
 storage/

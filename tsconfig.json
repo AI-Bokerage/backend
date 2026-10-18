@@ -3,8 +3,9 @@
     "target": "ES2022",
     "module": "CommonJS",
     "lib": ["ES2022"],
+    // No "ignoreDeprecations": "6.0" — the pinned TypeScript (5.9) rejects it and the build fails.
+    // If VS Code warns about "Node", select the workspace TypeScript version (5.9), not its built-in 6.x.
     "moduleResolution": "Node",
-    "ignoreDeprecations": "6.0",
     "rootDir": ".",
     "outDir": "dist",
     "strict": true,

@@ -1,0 +1,24 @@
+# HTTPS for the CRM. Caddy gets and renews the Let's Encrypt certificate itself, as soon as
+# CRM_DOMAIN's DNS points at this server and ports 80/443 are open.
+{$CRM_DOMAIN} {
+	encode gzip
+	# Same origin for everything, so the auth service's HttpOnly cookies work on every call
+	# (the same split as the frontend's next.config.ts rewrites, done here in one hop).
+	handle /api/v1/auth/* {
+		reverse_proxy modauth:8102
+	}
+	handle /api/v1/modauth/* {
+		reverse_proxy modauth:8102
+	}
+	# The backend, incl. the AI services' signed callbacks (/api/v1/crm/webhooks/ai/*), and its
+	# plain-language Swagger page.
+	handle /api/v1/* {
+		reverse_proxy app:4000
+	}
+	handle /docs* {
+		reverse_proxy app:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

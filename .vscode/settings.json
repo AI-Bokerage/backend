@@ -1,0 +1,7 @@
+{
+  // Check types with the project's TypeScript (5.9, what CI and the build use), not VS Code's
+  // built-in 6.x — otherwise the editor flags tsconfig.json's moduleResolution and invites a fix
+  // ("ignoreDeprecations": "6.0") that breaks the real build.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

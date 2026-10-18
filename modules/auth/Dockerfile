@@ -15,4 +15,5 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /workspace/modules/auth/build/libs/modules-auth.jar app.jar
 EXPOSE 8102
-ENTRYPOINT ["java", "-jar", "app.jar"]
+COPY modules/auth/docker-entrypoint.sh /app/docker-entrypoint.sh
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

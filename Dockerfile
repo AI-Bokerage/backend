@@ -1,10 +1,17 @@
+# modules/platform loads @gen-ms/gen-sup-starter (lib/, a `file:` dependency) at runtime. Its dist/
+# is git-ignored, so build it here: a checkout (CI, Railway) has only its source.
+FROM node:20-alpine AS libs
+WORKDIR /lib
+COPY lib/Gen_Sup-main/package.json ./
+COPY lib/Gen_Sup-main/packages/gen-sup-starter packages/gen-sup-starter
+RUN npm install --no-audit --no-fund --workspace=@gen-ms/gen-sup-starter \
+ && npm run build --workspace=@gen-ms/gen-sup-starter
+
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-# modules/platform depends on @gen-ms/gen-sup-starter via a `file:` path into
-# lib/ — pnpm needs that directory to actually exist at install time, not
-# just at the later `COPY . .` in the builder stage below.
-COPY lib/Gen_Sup-main/packages/gen-sup-starter lib/Gen_Sup-main/packages/gen-sup-starter
+# pnpm needs the `file:` dependency's directory (with its fresh dist/) at install time.
+COPY --from=libs /lib/packages/gen-sup-starter lib/Gen_Sup-main/packages/gen-sup-starter
 COPY lib/Gen_Usg-main/packages/gen-usg-starter lib/Gen_Usg-main/packages/gen-usg-starter
 # @prisma/client's postinstall runs `prisma generate` against this schema —
 # without it here, `pnpm install` silently generates an empty client (no
@@ -31,6 +38,8 @@ ENV NODE_ENV=production
 COPY package.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+# Migrations: the deploy runs `prisma migrate deploy` from this image before starting it.
+COPY prisma ./prisma
 # swagger-jsdoc reads these from disk at request time (config/swagger.ts's `apis`
 # glob), not from the compiled dist/ bundle — without them, /docs renders an empty
 # spec (confirmed: the UI shell loads fine either way, silently hiding the gap).
