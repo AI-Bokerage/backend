@@ -1,0 +1,46 @@
+server:
+  port: 8106
+
+spring:
+  application:
+    name: gen-adm-demo
+
+  datasource:
+    url: ${ADM_DB_URL}
+    username: ${ADM_DB_USERNAME}
+    password: ${ADM_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+
+# Consumer-supplied permission catalog — Gen_ADM ships with none built in.
+gen-adm:
+  permissions:
+    - code: adm:roles:manage
+      description: Create/edit roles and manage permission grants
+    - code: users:read
+      description: Read user data (demo-only placeholder code)
+    - code: adm:offboarding:manage
+      description: Initiate and manage user offboarding
+    - code: adm:impersonation:request
+      description: Request to impersonate another user in the same tenant
+    - code: adm:impersonation:manage
+      description: Approve, reject, list, and force-end impersonation sessions
+    - code: adm:invitations:manage
+      description: Create, list, and cancel member invitations
+    - code: adm:tickets:manage
+      description: List all tenant support tickets and manage their lifecycle
+    - code: adm:exports:manage
+      description: Request, list, download, and revoke tenant data exports

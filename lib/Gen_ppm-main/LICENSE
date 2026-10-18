@@ -1,0 +1,12 @@
+Proprietary — Internal Use Only
+
+Copyright (c) CPMS Platform Team. All rights reserved.
+
+This repository (ppm-core, ppm-spring-boot-starter, ppm-demo, ppm-svc, and all
+other modules herein) is proprietary software internal to the CPMS platform
+ecosystem. It is not licensed for external distribution, publication to a
+public artifact repository, or use outside of authorized internal consumers.
+
+No warranty of any kind is provided. See VERSIONING.md and RELEASE_PROCESS.md
+in ppm-core for the compatibility and release policy that applies to internal
+consumers of these artifacts.

@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum NotifChannel {
+  email
+  inapp
+  sms
+  webhook
+
+  @@map("notif_channel")
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+  QUEUED_FOR_DIGEST
+  READ
+
+  @@map("notification_status")
+}
+
+enum DigestStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+
+  @@map("digest_status")
+}
+
+model NotificationPreference {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  eventType  String       @map("event_type") @db.VarChar(120)
+  channel    NotifChannel
+  enabled    Boolean      @default(true)
+  digestMode Boolean      @default(false) @map("digest_mode")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, eventType, channel])
+  @@index([tenantId, userId])
+  @@map("notification_preference")
+}
+
+model NotificationLog {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String              @map("tenant_id") @db.Uuid
+  userId        String              @map("user_id") @db.Uuid
+  channel       NotifChannel
+  eventType     String              @map("event_type") @db.VarChar(120)
+  title         String              @db.VarChar(300)
+  body          String
+  entityRefType String?             @map("entity_ref_type") @db.VarChar(60)
+  entityRefId   String?             @map("entity_ref_id") @db.VarChar(120)
+  status        NotificationStatus
+  readAt        DateTime?           @map("read_at") @db.Timestamptz(6)
+  attempts      Int                 @default(1)
+  lastError     String?             @map("last_error")
+  sentAt        DateTime?           @map("sent_at") @db.Timestamptz(6)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, userId, status, createdAt(sort: Desc)])
+  @@map("notification_log")
+}
+
+model DigestQueueEntry {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  userId          String       @map("user_id") @db.Uuid
+  email           String       @db.VarChar(320)
+  channel         NotifChannel
+  scheduledFor    DateTime     @map("scheduled_for") @db.Timestamptz(6)
+  status          DigestStatus @default(PENDING)
+  notificationIds String[]     @map("notification_ids") @db.Uuid
+  attempts        Int          @default(0)
+  lastError       String?      @map("last_error")
+  sentAt          DateTime?    @map("sent_at") @db.Timestamptz(6)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, scheduledFor])
+  @@index([tenantId, userId, status])
+  @@map("digest_queue_entry")
+}
+
+model WebhookEndpoint {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  url         String   @db.VarChar(2048)
+  secret      String   @db.VarChar(128)
+  enabled     Boolean  @default(true)
+  description String?  @db.VarChar(300)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, userId, enabled])
+  @@map("webhook_endpoint")
+}
+
+model EmailSuppression {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String   @unique @db.VarChar(320)
+  reason        String   @db.VarChar(60)
+  suppressedAt  DateTime @default(now()) @map("suppressed_at") @db.Timestamptz(6)
+
+  @@map("email_suppression")
+}

@@ -1,0 +1,51 @@
+server:
+  port: 8103
+
+spring:
+  application:
+    name: modules-tenant
+
+  datasource:
+    url: ${TNT_DB_URL}
+    username: ${TNT_DB_USERNAME}
+    password: ${TNT_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: ${TNT_REDIS_HOST:localhost}
+      port: ${TNT_REDIS_PORT:6381}
+
+  # gen-tnt-starter wires Spring Boot's own Flyway autoconfiguration itself
+  # (unlike gen-auth-starter, which runs an independent instance) — default
+  # location classpath:db/migration, default history table. Nothing else
+  # shares this app's classpath, so no collision to worry about.
+
+gentnt:
+  internal-secret: ${INTERNAL_SERVICE_SECRET}
+  provisioning:
+    # Deliberately empty: this module treats Gen_TNT as a pure tenant
+    # registry (id/slug/name/region/status + suspend/reactivate/cancel/purge)
+    # and tracks "has the owner accepted their invite yet" separately, via
+    # the invitation record in modules/auth — see modules/platform's
+    # BrokerageService. A real infra-provisioning pipeline (schema bootstrap,
+    # etc.) would populate this list; out of scope for the 4 super-admin
+    # flow diagrams this module implements.
+    steps: []
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v1/docs/openapi.json
+  swagger-ui:
+    enabled: true
+    path: /v1/docs
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false

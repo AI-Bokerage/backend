@@ -1,0 +1,93 @@
+plugins {
+    id 'java-library'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'maven-publish'
+}
+
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+description = 'ppm-spring-boot-starter — official Spring Boot integration for ppm-core: auto-configuration, configuration properties, and startup port validation. No business logic, no controllers, no persistence.'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withJavadocJar()
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            pom {
+                name = 'ppm-spring-boot-starter'
+                description = project.description
+                url = 'https://github.com/your-org/Gen_PPM' // placeholder — see RELEASE_PROCESS.md
+                licenses {
+                    license {
+                        name = 'Proprietary'
+                        comments = 'Internal to the CPMS platform ecosystem — see LICENSE at the repository root.'
+                    }
+                }
+                developers {
+                    developer {
+                        name = 'CPMS Platform Team'
+                    }
+                }
+                scm {
+                    url = 'https://github.com/your-org/Gen_PPM' // placeholder — see RELEASE_PROCESS.md
+                }
+            }
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'org.springframework.boot:spring-boot-dependencies:4.0.6'
+    }
+}
+
+dependencies {
+    // Consumers of this starter transitively need ppm-core's types (Plan, PlanRepositoryPort, ...)
+    // to implement the ports and call the use cases — hence `api`, not `implementation`.
+    api project(':ppm-core')
+
+    // Explicit literal version — see the matching comment in ppm-core/build.gradle. Confirmed
+    // by publishing this module and checking its POM: without a literal version here,
+    // io.spring.dependency-management leaves this dependency unversioned in the published
+    // artifact, which a genuinely external consumer (resolving via Maven coordinates only,
+    // not project(':ppm-spring-boot-starter')) cannot resolve.
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:4.0.6'
+    annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.assertj:assertj-core:3.26.3'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+    testImplementation 'org.springframework.boot:spring-boot-test'
+    testImplementation 'org.springframework.boot:spring-boot-autoconfigure'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named('generateMetadataFileForMavenPublication') {
+    // See ppm-core/build.gradle for why this is suppressed: io.spring.dependency-management
+    // resolves versions via BOM import, not literal strings, which Gradle's module-metadata
+    // validator otherwise flags as "unversioned."
+    suppressedValidationErrors.add('dependencies-without-versions')
+}

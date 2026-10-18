@@ -1,0 +1,10 @@
+{
+  "name": "gen-search-workspace",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm test --workspace=@gen-ms/gen-search-starter",
+    "build": "npm run build --workspace=@gen-ms/gen-search-starter && npm run build --workspace=@gen-ms/gen-search-demo",
+    "dev": "npm run dev --workspace=@gen-ms/gen-search-demo"
+  }
+}

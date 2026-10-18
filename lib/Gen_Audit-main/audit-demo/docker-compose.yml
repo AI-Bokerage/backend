@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: audit_demo
+      POSTGRES_USER: audit_demo
+      POSTGRES_PASSWORD: audit_demo
+    ports:
+      - "5442:5432"
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: s3
+    ports:
+      - "4566:4566"

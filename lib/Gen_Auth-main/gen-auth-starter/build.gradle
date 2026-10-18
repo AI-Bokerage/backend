@@ -1,0 +1,204 @@
+plugins {
+    id 'java-library'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'maven-publish'
+}
+
+description = 'gen-auth-starter'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withSourcesJar()
+}
+
+ext {
+    mapstructVersion      = '1.6.3'
+    resilience4jVersion   = '2.4.0'
+    archunitVersion       = '1.3.0'
+    springdocVersion      = '3.0.3'
+    jjwtVersion           = '0.12.7'
+    bouncyCastleVersion   = '1.80'
+    testcontainersVersion = '1.21.3'
+    awsSdkVersion         = '2.27.21'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.0.6"
+        mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
+    }
+}
+
+dependencies {
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Web
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Security
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Future SSO Support
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    implementation 'org.springframework.security:spring-security-saml2-service-provider'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // JWT
+    // ─────────────────────────────────────────────────────────────────────
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // ─────────────────────────────────────────────────────────────────────
+    // BouncyCastle — required by Spring Security Argon2PasswordEncoder
+    // ─────────────────────────────────────────────────────────────────────
+    implementation "org.bouncycastle:bcprov-jdk18on:${bouncyCastleVersion}"
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Validation
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // AOP
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework:spring-aop'
+    implementation 'org.aspectj:aspectjweaver'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Persistence
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Flyway — plain library, NOT spring-boot-starter-flyway. The starter
+    // runs its own independent Flyway instance (see Task 4); it must never
+    // pull in Spring Boot's own Flyway autoconfiguration, which would try
+    // to run against the host app's default classpath:db/migration location.
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Valkey
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.session:spring-session-data-redis'
+    implementation 'io.lettuce:lettuce-core'
+    implementation 'org.apache.commons:commons-pool2'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Cache
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Observability
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Resilience4j
+    // ─────────────────────────────────────────────────────────────────────
+    implementation "io.github.resilience4j:resilience4j-spring-boot4:${resilience4jVersion}"
+    implementation "io.github.resilience4j:resilience4j-micrometer:${resilience4jVersion}"
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Swagger / OpenAPI
+    // ─────────────────────────────────────────────────────────────────────
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Mapping
+    // ─────────────────────────────────────────────────────────────────────
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Lombok
+    // ─────────────────────────────────────────────────────────────────────
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Configuration Processor
+    // ─────────────────────────────────────────────────────────────────────
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // AWS SDK v2 — KMS asymmetric signing (jwt.signing-mode=kms)
+    // ─────────────────────────────────────────────────────────────────────
+    implementation platform("software.amazon.awssdk:bom:${awsSdkVersion}")
+    implementation 'software.amazon.awssdk:kms'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Email (SMTP + SES) — optional, gated by app.email.enabled
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'software.amazon.awssdk:ses'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Messaging (RabbitMQ) — optional, gated by app.messaging.enabled
+    // ─────────────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Testing
+    // ─────────────────────────────────────────────────────────────────────
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation "com.tngtech.archunit:archunit-junit5:${archunitVersion}"
+    testImplementation 'org.awaitility:awaitility'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // Same fix gen-tnt-starter's build.gradle already applies, for the same
+    // reason: Spring MVC resolves unnamed @RequestParam/@PathVariable by
+    // reflecting on the compiled parameter name, which javac only retains
+    // with -parameters — normally added by the Spring Boot Gradle plugin,
+    // which this java-library module doesn't apply. Without it, any consumer
+    // hits "Name for argument of type [X] not specified" the first time an
+    // unnamed-parameter endpoint is actually invoked — confirmed by an actual
+    // 500 on GET /internal/auth/users/exists from modules/platform.
+    options.compilerArgs << '-parameters'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'io.genauth'
+            artifactId = 'gen-auth-starter'
+            version = '1.0.0-alpha1'
+            from components.java
+        }
+    }
+}

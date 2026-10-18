@@ -1,0 +1,9 @@
+// settings.gradle
+rootProject.name = 'gen-tnt'
+include(':gen-tnt-starter', ':gen-tnt-demo')
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}

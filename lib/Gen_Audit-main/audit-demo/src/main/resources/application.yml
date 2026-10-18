@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5442/audit_demo
+    username: audit_demo
+    password: audit_demo
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    locations: classpath:db/migration
+  mongodb:
+    uri: mongodb://localhost:27017/audit_demo
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+audit:
+  jpa:
+    enabled: true
+  mongo:
+    collection: audit_events
+  rabbit:
+    queue: audit.events
+  anchor:
+    bucket: audit-demo-anchors
+    key-prefix: anchors/
+    retention-years: 7
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always

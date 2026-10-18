@@ -1,0 +1,2 @@
+rootProject.name = 'gen-adm'
+include(':gen-adm-starter', ':gen-adm-demo')

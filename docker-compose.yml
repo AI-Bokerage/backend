@@ -1,0 +1,227 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    env_file:
+      - .env
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      NODE_ENV: development
+      PORT: '4000'
+      APP_NAME: Enterprise Backend Template
+      API_PREFIX: /api/v1
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      LOG_LEVEL: info
+      JWT_ACCESS_SECRET: dev-only-access-secret-change-me-change-me
+      JWT_REFRESH_SECRET: dev-only-refresh-secret-change-me-change-me
+      BCRYPT_SALT_ROUNDS: '12'
+      DB_CLIENT: prisma
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/template_db
+      # Required by config/env.ts but unused: DB_CLIENT=prisma never connects to Mongo, so there
+      # is no mongodb container. Set DB_CLIENT=mongoose|both only after adding one back.
+      MONGODB_URI: mongodb://mongodb:27017/template_db
+      # ── modules/platform (Super Admin console) ──────────────────────────
+      AUTH_SERVICE_BASE_URL: http://modauth:8102
+      TENANT_SERVICE_BASE_URL: http://tenant:8103
+      INTERNAL_SERVICE_SECRET: dev-only-internal-secret-change-me
+      AUTH_JWT_ISSUER: http://localhost:8102
+      AUTH_JWT_AUDIENCE: modules-auth
+      BROKERAGE_EXPORT_DOWNLOAD_DAYS: '7'
+      BROKERAGE_EXPORT_RETENTION_DAYS: '30'
+      # ── AI services (ai service/docker/full-stack.yml, a separate stack) ──
+      # Reached through the host; their keys live in .env (AI_*_KEY).
+      AI_GATEWAY_URL: http://host.docker.internal:4201
+      AI_VOICE_URL: http://host.docker.internal:4202
+      AI_DOCREAD_URL: http://host.docker.internal:4203
+      AI_NOTES_URL: http://host.docker.internal:4204
+      AI_EMAIL_URL: http://host.docker.internal:4205
+      AI_ASSISTANT_URL: http://host.docker.internal:4206
+      AI_SEARCH_URL: http://host.docker.internal:4207
+      # Flow 4.5 "Virus check clean?" — every uploaded file is scanned here before it is stored.
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: '3310'
+      # Where the AI containers send their signed job callbacks back to this API.
+      AI_CALLBACK_BASE_URL: http://host.docker.internal:4000
+      # "Allow extra for today" raises the brokerage's daily AI cost cap to this (CAD).
+      AI_COST_OVERRIDE_LIMIT: '100'
+      # Must match modules/auth/src/main/resources/keys/public.pem exactly —
+      # that's the private half of this same throwaway dev keypair.
+      AUTH_JWT_PUBLIC_KEY: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArjcOkeJc1ZklqDmn2/fr
+        EepdFjOnhIFRo85cDqBsVBx7nvedJsDgg1P8IQKtHXLBm/unG7buaCqQLfSA0TkG
+        GReqPunt2aARQdVCh4iKPHnrp2Xn98D4+lhEsUHqR/9U6xy0f6abB1zYx6fj+Gv3
+        I56T8oeu1INb+S+sq7YWEFEqRZzsvy/h4jHFsxF4D4eFUPAHcfO+fGUz0Gfs2Nke
+        IujxYfGykR+7Q9d7Baon1IOaar6vlPlUtFahek4vGKZdzpxjcs3KnPH+6gyqRs7Q
+        XxJwl6KWBTqgYT7dOOgJUVjSbYgBRZn3zy7k0XJEmw0qW7SJqzSbrqdzN3y3jKLe
+        tQIDAQAB
+        -----END PUBLIC KEY-----
+    depends_on:
+      postgres:
+        condition: service_healthy
+      modauth:
+        condition: service_started
+      tenant:
+        condition: service_started
+      clamav:
+        condition: service_started
+
+  # Virus scanner (Flow 4.5). Files never leave the machine. First start downloads the
+  # virus database (~200 MB, a few minutes; kept in clamav_db and refreshed by freshclam).
+  # Until clamd is ready, uploads are refused rather than stored unscanned.
+  clamav:
+    image: clamav/clamav-debian:1.4
+    restart: unless-stopped
+    ports:
+      - '3310:3310'
+    volumes:
+      - ./docker/clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+      - clamav_db:/var/lib/clamav
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: template_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  # ── modules/auth — the Java auth service (gen-auth-starter + this repo's
+  #    role/terms/invitation additions). Own Postgres/Redis/Mailhog so it
+  #    never touches the Node app's `postgres` above. Every secret
+  #    below is a throwaway dev value, not meant for real deployments.
+  modauth:
+    build:
+      context: .
+      dockerfile: modules/auth/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '8102:8102'
+    environment:
+      # Dev-sized JVM: uncapped, Java claims up to a quarter of Docker's memory per service.
+      JAVA_TOOL_OPTIONS: '-Xmx256m -Xss512k -XX:+UseSerialGC -XX:MaxMetaspaceSize=192m -XX:TieredStopAtLevel=1 -XX:ReservedCodeCacheSize=48m'
+      AUTH_DB_URL: jdbc:postgresql://auth-postgres:5432/auth_db
+      AUTH_DB_USERNAME: postgres
+      AUTH_DB_PASSWORD: postgres
+      REDIS_HOST: auth-redis
+      REDIS_PORT: '6379'
+      SMTP_HOST: mailhog
+      SMTP_PORT: '1025'
+      JWT_ISSUER: http://localhost:8102
+      JWT_AUDIENCE: modules-auth
+      # Must be valid base64 (KeyEncryptionUtil decodes it directly) — this is a
+      # throwaway dev value, generate your own with `openssl rand -base64 32`.
+      JWT_KEY_ENCRYPTION_SECRET: J2r6UKQCT8wKd94xnRw0eFI+HjtZwfR0Zeqk3hgmCaE=
+      INTERNAL_SERVICE_SECRET: dev-only-internal-secret-change-me
+      FRONTEND_RESET_URL: http://localhost:3000/reset-password
+      FRONTEND_INVITE_ACCEPT_URL: http://localhost:3000/invitations/accept
+      # FLOW 1 — Super Admin: bootstrap credentials, emailed once on first
+      # boot (check Mailhog at http://localhost:8026), not printed anywhere.
+      SUPER_ADMIN_EMAIL: superadmin@example.com
+      SUPER_ADMIN_PASSWORD: SuperAdmin@12345
+      PLATFORM_WEBHOOK_URL: http://app:4000/api/v1/platform/webhooks/owner-accepted
+      PLATFORM_EVENTS_URL: http://app:4000/api/v1/platform/webhooks/auth-events
+      SESSION_IDLE_TIMEOUT_MINUTES: 30
+      CRM_BASE_URL: http://app:4000/api/v1/crm
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+      auth-redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+
+  auth-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  auth-redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+
+  # Catches every email this module sends (invitations, password resets) —
+  # web UI at http://localhost:8026, nothing actually leaves the machine.
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - '8026:8025'
+      - '1026:1025'
+
+  # ── modules/tenant — Gen_TNT (brokerage/tenant CRUD + provisioning saga).
+  #    Own Postgres/Redis, same pattern as modauth above.
+  tenant:
+    build:
+      context: .
+      dockerfile: modules/tenant/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '8103:8103'
+    environment:
+      # Dev-sized JVM: uncapped, Java claims up to a quarter of Docker's memory per service.
+      JAVA_TOOL_OPTIONS: '-Xmx256m -Xss512k -XX:+UseSerialGC -XX:MaxMetaspaceSize=192m -XX:TieredStopAtLevel=1 -XX:ReservedCodeCacheSize=48m'
+      TNT_DB_URL: jdbc:postgresql://tenant-postgres:5432/tenant_db
+      TNT_DB_USERNAME: postgres
+      TNT_DB_PASSWORD: postgres
+      TNT_REDIS_HOST: tenant-redis
+      TNT_REDIS_PORT: '6379'
+      INTERNAL_SERVICE_SECRET: dev-only-internal-secret-change-me
+    depends_on:
+      tenant-postgres:
+        condition: service_healthy
+      tenant-redis:
+        condition: service_started
+
+  tenant-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tenant_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5434:5432'
+    volumes:
+      - tenant_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  tenant-redis:
+    image: redis:7-alpine
+    ports:
+      - '6381:6379'
+
+
+volumes:
+  postgres_data:
+  clamav_db:
+  # Kept so earlier data survives; their containers (mongodb, usage-postgres) were removed as unused.
+  mongo_data:
+  auth_postgres_data:
+  tenant_postgres_data:
+  usage_postgres_data:

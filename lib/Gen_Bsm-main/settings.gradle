@@ -1,0 +1,8 @@
+rootProject.name = 'bsm-svc-platform'
+
+include 'libs:security-spi'
+include 'libs:java-common'
+include 'bsm-core'
+include 'bsm-svc'
+include 'bsm-demo'
+include 'bsm-spring-boot-starter'

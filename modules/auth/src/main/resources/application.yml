@@ -1,0 +1,126 @@
+server:
+  port: 8102
+
+spring:
+  application:
+    name: modules-auth
+  main:
+    allow-bean-definition-overriding: true
+
+  datasource:
+    url: ${AUTH_DB_URL}
+    username: ${AUTH_DB_USERNAME}
+    password: ${AUTH_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  # gen-auth-starter runs its own independent Flyway instance against
+  # classpath:db/migration/genauth (table flyway_schema_history_auth).
+  # This app's own migrations (classpath:db/migration, the Boot default)
+  # run through this normal Spring Boot Flyway autoconfiguration instead —
+  # see ModAuthFlywayInitializer for the explicit ordering between the two.
+  flyway:
+    enabled: false # driven manually by ModAuthFlywayInitializer, see its javadoc
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1026}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+# ── gen-auth-starter feature flags ─────────────────────────────────────────
+# Forgot-password reuses the starter's own magic-link flow as-is (diagram
+# match is exact: generic response regardless of email existing, expiring
+# token, password-rule violations surfaced on verify) — needs both flags on.
+app:
+  email:
+    enabled: true
+  magic-link:
+    enabled: true
+  # Platform console flow ("FLOW 1 — Super Admin") logs in through this
+  # module's own /api/v1/auth/super-admin/login. Requires app.email.enabled
+  # (above) — the bootstrap password is emailed, not printed anywhere.
+  super-admin:
+    enabled: true
+
+auth:
+  magic-link:
+    frontend-reset-url: ${FRONTEND_RESET_URL:http://localhost:3000/reset-password}
+  super-admin:
+    email: ${SUPER_ADMIN_EMAIL}
+    password: ${SUPER_ADMIN_PASSWORD}
+
+jwt:
+  issuer: ${JWT_ISSUER:https://auth.example.com}
+  audience: ${JWT_AUDIENCE:example-api}
+  key-id: auth-key-v1
+  signing-mode: local
+  active-kid: auth-key-v1
+  access-token:
+    expiration-minutes: 15
+  refresh-token:
+    expiration-days: 7
+  keys:
+    - kid: auth-key-v1
+      private-key-path: classpath:keys/private.pem
+      public-key-path: classpath:keys/public.pem
+  key-encryption-secret: ${JWT_KEY_ENCRYPTION_SECRET}
+
+internal-service-secret: ${INTERNAL_SERVICE_SECRET}
+
+# ── Swagger / OpenAPI — same paths gen-auth-starter's SecurityConfig already
+# permits publicly (/v1/docs/**, /swagger-ui/**), so no security changes
+# needed. Combines this module's own annotated endpoints with every
+# springdoc-annotated endpoint gen-auth-starter exposes in the same JVM
+# (login, magic-link, etc.) into one spec.
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v1/docs/openapi.json
+  swagger-ui:
+    enabled: true
+    path: /v1/docs
+    operationsSorter: method
+    tagsSorter: alpha
+    disable-swagger-default-url: true
+    document-title: Auth Module API
+  show-actuator: false
+
+# ── this module's own config ───────────────────────────────────────────────
+modauth:
+  terms:
+    # Bumping this forces every user to re-accept terms on next login —
+    # matches the "have the terms changed since last login?" diagram gate.
+    current-version: 1
+  invitation:
+    ttl-days: 7
+    frontend-accept-url: ${FRONTEND_INVITE_ACCEPT_URL:http://localhost:3000/invitations/accept}
+  # Notified (fire-and-forget) after a TENANT_ADMIN invite is accepted, so the
+  # console's "did the owner accept?" state flips from Pending to Active.
+  # Blank/unset is fine — modules/platform isn't a hard dependency of this one.
+  platform-webhook-url: ${PLATFORM_WEBHOOK_URL:}
+  # Sign-in and security events forwarded to the Super Admin's activity log
+  # (Flow 1). Blank = not forwarded — see PlatformEventClient.
+  platform-events-url: ${PLATFORM_EVENTS_URL:}
+  # Flow 0 "inactive too long → logged out": a refresh token older than this
+  # is refused — see SessionPolicyRefreshTokenService.
+  session:
+    idle-timeout-minutes: ${SESSION_IDLE_TIMEOUT_MINUTES:30}
+  # Same Node app, different route group — PeopleServiceImpl's deactivation
+  # check (SOW 2.11) asks modules/crm "does this broker still have clients
+  # assigned?" before allowing deactivation.
+  crm-base-url: ${CRM_BASE_URL:http://localhost:4000/api/v1/crm}

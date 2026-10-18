@@ -1,0 +1,7 @@
+rootProject.name = 'modules-auth'
+
+// Pulls in gen-auth-starter (and gen-auth-demo) as an included build so this
+// module depends on the real starter sources in lib/Gen_Auth-main instead of
+// a copy — Gradle substitutes `com.example:gen-auth-starter` with the
+// included project automatically because the group/name match.
+includeBuild('../../lib/Gen_Auth-main')

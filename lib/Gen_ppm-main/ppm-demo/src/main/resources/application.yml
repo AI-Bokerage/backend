@@ -1,0 +1,6 @@
+server:
+  port: 8199
+
+spring:
+  application:
+    name: ppm-demo

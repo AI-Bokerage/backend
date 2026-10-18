@@ -1,0 +1,399 @@
+components:
+  securitySchemes:
+    superAdminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        A SUPER_ADMIN access token from modules/auth's
+        POST /api/v1/auth/super-admin/login (or /api/v1/modauth/login for a
+        user_type=SUPER_ADMIN account).
+  schemas:
+    Brokerage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string, example: acme-realty }
+        name: { type: string, example: Acme Realty }
+        status: { type: string, enum: [PROVISIONING, ACTIVE, SUSPENDED, CANCELLED, PURGED] }
+        region: { type: string, nullable: true }
+        primaryOwnerUserId: { type: string, format: uuid }
+        provisioningJobId: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+        onboardingStatus:
+          type: string
+          enum: [PENDING, ACTIVE]
+          description: Separate from `status` — PENDING until the owner accepts their invite.
+        invitationId: { type: string, format: uuid }
+    CreateBrokerageRequest:
+      type: object
+      required: [name, ownerName, ownerEmail]
+      properties:
+        name: { type: string, minLength: 2, example: Acme Realty }
+        ownerName: { type: string, example: Jordan Lee }
+        ownerEmail: { type: string, format: email }
+        region: { type: string, default: us-east-1 }
+    ExportJob:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        status: { type: string, enum: [EXPORTING, READY, FAILED, EXPIRED, DELETED] }
+        readyAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+    UsageStatus:
+      type: object
+      properties:
+        metric: { type: string, example: ai_cost_cad_daily }
+        outcome: { type: string, enum: [ALLOW, SOFT_WARN_80, SOFT_WARN_95, BLOCK] }
+        paused:
+          type: boolean
+          description: 'true once BLOCK — "has this brokerage hit its daily cost limit?"'
+        current: { type: number, description: "Today's real AI cost, CAD", example: 52.4 }
+        limit: { type: number, description: 'Daily cost cap, CAD', example: 50 }
+        pct: { type: number, example: 104.8 }
+        overrideExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set while an "Allow extra for today" override is active.
+
+paths:
+  /platform/brokerages:
+    post:
+      tags: [Platform]
+      summary: Create a brokerage
+      description: >
+        Checks the owner's email isn't already registered, creates the
+        Gen_TNT tenant record, then sends the owner a TENANT_ADMIN invitation
+        via modules/auth. Status stays PENDING (onboardingStatus) until they accept.
+      security: [{ superAdminBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBrokerageRequest' }
+      responses:
+        '201':
+          description: Brokerage created, invitation sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Brokerage' }
+        '409':
+          description: That email already belongs to another account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    get:
+      tags: [Platform]
+      summary: List brokerages
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Paginated brokerages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  total: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Brokerage' }
+
+  /platform/brokerages/{id}:
+    get:
+      tags: [Platform]
+      summary: Get a brokerage
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The brokerage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Brokerage' }
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /platform/brokerages/{id}/suspend:
+    patch:
+      tags: [Platform]
+      summary: Suspend a brokerage
+      description: >
+        Everyone in that brokerage is blocked at login and signed out on their
+        next request (sessions revoked, CRM calls return 403) until reactivated.
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 10 }
+      responses:
+        '200':
+          description: Suspended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Brokerage' }
+
+  /platform/brokerages/{id}/reactivate:
+    patch:
+      tags: [Platform]
+      summary: Reactivate a suspended brokerage
+      description: Access restored — people can sign in again.
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string }
+      responses:
+        '200':
+          description: Reactivated — access restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Brokerage' }
+
+  /platform/brokerages/{id}/cancel:
+    patch:
+      tags: [Platform]
+      summary: Start cancellation
+      description: >
+        Blocks sign-in for everyone in the brokerage, marks the tenant
+        CANCELLED and packages its data: one spreadsheet (CSV) per record type
+        plus every stored document, as a zip available for
+        BROKERAGE_EXPORT_DOWNLOAD_DAYS. After BROKERAGE_RETENTION_DAYS (default
+        90) the brokerage's CRM data and documents are permanently deleted and
+        its tenant record purged — automatically, by the hourly sweep.
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Cancellation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      tenant: { $ref: '#/components/schemas/Brokerage' }
+                      exportJob: { $ref: '#/components/schemas/ExportJob' }
+
+  /platform/brokerages/{id}/export:
+    get:
+      tags: [Platform]
+      summary: Latest export job status for a brokerage
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Export job status (or null if none started)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    nullable: true
+                    description: null when no export has been started yet
+                    allOf: [{ $ref: '#/components/schemas/ExportJob' }]
+
+  /platform/exports/{jobId}/download:
+    get:
+      tags: [Platform]
+      summary: Download a ready export
+      description: 410 if the download window (BROKERAGE_EXPORT_DOWNLOAD_DAYS) has passed; 409 if not ready yet.
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The zip file
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '409': { description: Export is not ready yet }
+        '410': { description: Download window has expired }
+
+  /platform/brokerages/{id}/usage:
+    get:
+      tags: [Platform]
+      summary: 'Watching AI cost — has this brokerage hit its daily cost limit?'
+      description: >
+        Today's real AI provider cost for the brokerage against its daily cap,
+        both in CAD, as metered and enforced by the AI gateway. Over the cap the
+        gateway refuses the brokerage's AI calls (429 AI_LIMIT_REACHED).
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Current usage status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/UsageStatus' }
+
+  /platform/brokerages/{id}/usage/allow-extra-today:
+    post:
+      tags: [Platform]
+      summary: Allow extra for today
+      description: >
+        Raises the brokerage's daily AI cost cap to AI_COST_OVERRIDE_LIMIT
+        until the gateway's day ends (midnight America/Toronto), then the
+        default cap comes back on its own ("resets by itself tomorrow"). The
+        gateway applies it to the very next AI call.
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Override active until end of day
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/UsageStatus' }
+
+  /platform/webhooks/auth-events:
+    post:
+      summary: modules/auth forwards sign-in and security events here (Flow 1 activity log)
+      description: >
+        Logins, failed logins, lockouts, logouts (including inactivity
+        sign-outs), password changes/resets, refresh-token replay and
+        sign-ins blocked by a suspended brokerage. Each becomes an activity-log
+        entry. action must start with auth. or security.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, example: auth.login.success }
+                tenantId: { type: string, format: uuid, nullable: true }
+                userId: { type: string, format: uuid, nullable: true }
+                ip: { type: string, nullable: true }
+                details: { type: string, nullable: true }
+      responses:
+        '204': { description: Recorded }
+
+  /platform/webhooks/owner-accepted:
+    post:
+      tags: [Platform]
+      summary: modules/auth calls this after a TENANT_ADMIN invite is accepted
+      description: Internal — gated by X-Internal-Secret, not a JWT.
+      parameters:
+        - name: X-Internal-Secret
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId: { type: string, format: uuid }
+      responses:
+        '204': { description: Onboarding marked ACTIVE }
+        '401': { description: Unauthorized }
+
+  /platform/me:
+    get:
+      tags: [Platform]
+      summary: My settings — the caller's own identity
+      security: [{ superAdminBearer: [] }]
+      responses:
+        '200':
+          description: userId and email from the JWT
+
+  /platform/activity-log:
+    get:
+      tags: [Platform]
+      summary: Filtered activity log
+      description: Every recordActivity() call across the app writes into this table; this is its read side.
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, default: 20 } }
+      responses:
+        '200':
+          description: Paginated activity rows
+
+  /platform/activity-log/export:
+    get:
+      tags: [Platform]
+      summary: 'Export the activity log as a spreadsheet — the export itself is recorded'
+      description: Same filters as GET /platform/activity-log. Returns a CSV download.
+      security: [{ superAdminBearer: [] }]
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string }

@@ -1,0 +1,27 @@
+.gradle/
+build/
+bin/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### Local Environment ###
+.env
+.env.*
+*.local
+
+### IDE / editor noise ###
+.idea
+*.iws
+*.iml
+*.ipr
+.vscode/
+.DS_Store
+*.swp
+*.swo
+*~
+
+### Logs / reports ###
+*.log
+logs/
+reports/

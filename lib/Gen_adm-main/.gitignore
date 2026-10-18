@@ -1,0 +1,57 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### RSA keys — NEVER commit private keys ###
+gen-adm-starter/src/main/resources/keys/private.pem
+gen-adm-starter/src/main/resources/keys/public.pem
+gen-adm-demo/src/main/resources/keys/private.pem
+gen-adm-demo/src/main/resources/keys/public.pem
+
+### Local override configs — contain real credentials ###
+gen-adm-starter/src/main/resources/application-local.yml
+gen-adm-starter/src/main/resources/application-local.yaml
+
+### Env files — never commit real secrets ###
+.env
+.env.local
+*.log
+
+### Gen_ADM-specific — not part of the forked adm-svc source ###
+.worktrees/
+.superpowers/sdd/
+pre-context/

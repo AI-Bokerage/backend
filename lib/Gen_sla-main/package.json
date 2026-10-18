@@ -1,0 +1,10 @@
+{
+  "name": "gen-sla-workspace",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm test --workspace=@gen-ms/gen-sla-starter",
+    "build": "npm run build --workspace=@gen-ms/gen-sla-starter && npm run build --workspace=@gen-ms/gen-sla-demo",
+    "dev": "npm run dev --workspace=@gen-ms/gen-sla-demo"
+  }
+}

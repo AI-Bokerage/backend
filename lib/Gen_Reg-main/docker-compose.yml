@@ -1,0 +1,19 @@
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: genreg
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"   # distinct from PMP CANADA (5434), Gen_TNT (5435)
+    volumes:
+      - genreg_postgres_data:/var/lib/postgresql/data
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6382:6379"   # distinct from any other local Redis/Valkey instance
+
+volumes:
+  genreg_postgres_data:

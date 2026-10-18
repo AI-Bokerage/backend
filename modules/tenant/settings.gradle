@@ -1,0 +1,14 @@
+rootProject.name = 'modules-tenant'
+
+// Pulls in gen-tnt-starter as an included build, same idea as modules/auth
+// does for gen-auth-starter, but with an explicit dependency substitution:
+// Gen_Tenant-main has no root build.gradle setting a project-wide `group`
+// (unlike Gen_Auth-main's `allprojects { group = 'com.example' }`), so
+// implicit group-name matching for 'com.example:gen-tnt-starter' isn't
+// reliable here — this substitution works regardless of the subproject's
+// actual (unset) group.
+includeBuild('../../lib/Gen_Tenant-main') {
+    dependencySubstitution {
+        substitute(module('com.example:gen-tnt-starter')).using(project(':gen-tnt-starter'))
+    }
+}

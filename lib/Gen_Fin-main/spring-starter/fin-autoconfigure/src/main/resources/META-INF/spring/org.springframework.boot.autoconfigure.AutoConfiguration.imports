@@ -1,0 +1,12 @@
+io.genfin.autoconfigure.GenFinExtensionRegistryAutoConfiguration
+io.genfin.autoconfigure.money.MoneyAutoConfiguration
+io.genfin.autoconfigure.invoice.InvoiceAutoConfiguration
+io.genfin.autoconfigure.payment.PaymentAutoConfiguration
+io.genfin.autoconfigure.refund.RefundAutoConfiguration
+io.genfin.autoconfigure.reconciliation.ReconciliationAutoConfiguration
+io.genfin.autoconfigure.ledger.LedgerAutoConfiguration
+io.genfin.autoconfigure.pricing.PricingAutoConfiguration
+io.genfin.autoconfigure.dunning.DunningAutoConfiguration
+io.genfin.autoconfigure.document.DocumentAutoConfiguration
+io.genfin.autoconfigure.provider.ProviderAutoConfiguration
+io.genfin.autoconfigure.health.HealthAutoConfiguration

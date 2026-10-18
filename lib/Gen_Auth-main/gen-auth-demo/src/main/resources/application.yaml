@@ -1,0 +1,383 @@
+server:
+  port: 8101
+  shutdown: graceful
+  forward-headers-strategy: framework
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    accept-count: 100
+    max-connections: 1000
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+
+  application:
+    name: gen-auth-demo
+
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: ${AUTH_DB_URL}
+    username: ${AUTH_DB_USERNAME}
+    password: ${AUTH_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: auth-hikari-pool
+      maximum-pool-size: 200
+      minimum-idle: 20
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      leak-detection-threshold: 60000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    show-sql: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      ssl:
+        enabled: false
+      timeout: 5s
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+  session:
+    store-type: none
+
+  # ===================================================================
+  # OAUTH2 CLIENT CONFIG (only used when app.oauth.enabled=true)
+  # ===================================================================
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${OAUTH_GOOGLE_CLIENT_ID:}
+            client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET:}
+            scope:
+              - openid
+              - email
+              - profile
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+  # ===================================================================
+  # EMAIL (optional — off by default; see app.email.enabled below)
+  # ===================================================================
+  mail:
+    host: localhost
+    port: 1026
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+  # ===================================================================
+  # RABBITMQ (optional — see app.messaging.enabled below)
+  # ===================================================================
+  rabbitmq:
+    host: localhost
+    port: 5673
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ===================================================================
+# CORS CONFIG — app.cors.* (previously orphaned; CorsProperties binds here)
+# ===================================================================
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:4200
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - Accept
+      - X-Requested-With
+    allow-credentials: true
+    max-age: 3600
+
+  # ===================================================================
+  # COOKIE CONFIG — app.cookie.* (previously orphaned; CookieProperties binds here)
+  # ===================================================================
+  cookie:
+    domain: ${COOKIE_DOMAIN:}
+    secure: ${COOKIE_SECURE:false}
+    http-only: true
+    same-site: Strict
+    path: /
+
+  # ===================================================================
+  # EMAIL + MAGIC-LINK (optional — off by default)
+  # ===================================================================
+  # To try this locally: start Mailhog (docker compose up -d mailhog),
+  # flip both flags to true, then check http://localhost:8026 for captured mail.
+  email:
+    enabled: false
+  magic-link:
+    enabled: false
+
+  # ===================================================================
+  # SUPER ADMIN + IMPERSONATION + SERVICE-TOKEN (optional — off by default)
+  # ===================================================================
+  # Requires app.email.enabled=true (bootstrap + reset-password emails) AND
+  # app.magic-link.enabled=true (password-reset reuses the same Redis-backed
+  # MagicLinkStore as the tenant-user magic-link flow) too.
+  # To try this locally: flip all three flags true, set SUPER_ADMIN_EMAIL/PASSWORD,
+  # check Mailhog at http://localhost:8026 for the bootstrap-credentials email.
+  # Also gates POST /internal/service-token (a stateless SUPER_ADMIN-scoped JWT
+  # mint for service-to-service calls — rides this flag since it mints the same
+  # privileged token type, not because it's conceptually the same feature).
+  super-admin:
+    enabled: false
+
+  # ===================================================================
+  # CLIENT-TOKEN (optional — off by default)
+  # ===================================================================
+  # POST /v1/client-token — a CLIENT-scoped JWT mint for an internal caller
+  # (e.g. CPT-SVC) that has already verified the human. Its own flag, not
+  # tied to app.super-admin.enabled — this isn't a super-admin-privileged
+  # token. Still requires app.internal-hmac-auth.enabled=true below, with
+  # /v1/client-token added to its target-paths.
+  client-token:
+    enabled: false
+
+  # ===================================================================
+  # OTP — ONE-TIME CODE (optional — off by default)
+  # ===================================================================
+  # POST /internal/otp/request + /verify — caller-supplied-email one-time
+  # codes, Redis-backed, single-use on both match and mismatch. Requires
+  # app.email.enabled=true (OtpServiceImpl depends on EmailService
+  # unconditionally — enabling this without email will fail to boot).
+  # To try this locally: flip both flags true, request a code, then check
+  # Mailhog at http://localhost:8026 for the plaintext code.
+  otp:
+    enabled: false
+
+  # ===================================================================
+  # RABBITMQ EVENT PUBLISHING (optional — off by default)
+  # ===================================================================
+  # Publishes are outbox-backed, not fire-and-forget: AuthEventPublisher writes
+  # a PENDING row to auth_outbox_events (migration V7) in the caller's
+  # transaction, and AuthOutboxRelayJob drains it to the broker with retry
+  # (3 attempts, then FAILED). A broker outage accumulates PENDING rows
+  # instead of dropping events. Delivery is at-least-once — each message
+  # carries messageId = event_id so consumers can dedup.
+  # To try this locally: start RabbitMQ (docker compose up -d rabbitmq),
+  # flip the flag to true, then either open http://localhost:15673
+  # (guest/guest) or bind a throwaway consumer to the auth.events exchange
+  # to see login/logout/password-changed/impersonation events land. Audit-tier
+  # events land on the two auth.audit.* exchanges below instead.
+  messaging:
+    enabled: false
+    exchange: auth.events
+    outbox:
+      relay-interval-ms: 5000
+      batch-size: 50
+    audit:
+      # CPMS-Platform parity values: cpms.audit / cpms.platform.audit
+      tenant-exchange: auth.audit.tenant       # TopicExchange — tenant-tier
+      platform-exchange: auth.audit.platform   # FanoutExchange — super-admin tier
+
+  # ===================================================================
+  # MFA — TOTP + backup codes (optional — off by default)
+  # ===================================================================
+  # To try this locally: flip the flag to true, set MFA_SECRET_ENCRYPTION_KEY
+  # (openssl rand -base64 32), then enroll -> confirm -> log in again to see
+  # the two-step challenge flow.
+  mfa:
+    enabled: false
+
+  # ===================================================================
+  # OAUTH LOGIN (optional — off by default)
+  # ===================================================================
+  # To try this locally: create a Google OAuth 2.0 Client ID (Google Cloud
+  # Console > APIs & Services > Credentials), add
+  # http://localhost:8080/login/oauth2/code/google as an authorized redirect
+  # URI, set OAUTH_GOOGLE_CLIENT_ID/OAUTH_GOOGLE_CLIENT_SECRET, flip the flag
+  # to true, then visit http://localhost:8080/oauth2/authorization/google.
+  oauth:
+    enabled: false
+
+  # ===================================================================
+  # INTERNAL HMAC AUTH (optional — off by default)
+  # ===================================================================
+  # A second internal-caller auth mechanism alongside app.internal-secret's
+  # plain header check — verifies HMAC-SHA256-signed requests instead.
+  # Matches CPMS-Platform's auth-svc wire format exactly (X-CPMS-Timestamp/
+  # X-CPMS-Signature headers, same internal-service-secret). To try this
+  # locally: flip the flag, list the paths to guard, then sign a request the
+  # same way CPMS-Platform's sup-svc/src/infra/external/auth-svc.client.ts does
+  # (HMAC-SHA256 over "{unix-timestamp}:{raw-body}").
+  # target-paths must list every enabled V1InternalTokenController handler's
+  # path — /v1/impersonation-token when app.super-admin.enabled=true, and/or
+  # /v1/client-token when app.client-token.enabled=true — or the controller
+  # fails fast at startup rather than registering an unguarded token-mint route.
+  internal-hmac-auth:
+    enabled: false
+    target-paths:
+      - /v1/impersonation-token
+      # - /v1/client-token   # add when app.client-token.enabled=true
+
+# ===================================================================
+# JWT CONFIG
+# ===================================================================
+
+jwt:
+  issuer: ${JWT_ISSUER:https://auth.example.com}
+  audience: ${JWT_AUDIENCE:example-api}
+  key-id: auth-key-v1
+  signing-mode: local
+  active-kid: auth-key-v1
+
+  access-token:
+    expiration-minutes: 15
+
+  refresh-token:
+    expiration-days: 7
+
+  keys:
+    - kid: auth-key-v1
+      private-key-path: classpath:keys/private.pem
+      public-key-path: classpath:keys/public.pem
+
+  key-encryption-secret: ${JWT_KEY_ENCRYPTION_SECRET}
+
+# ===================================================================
+# AWS CONFIG (only used when jwt.signing-mode=kms)
+# ===================================================================
+
+aws:
+  region: ${AWS_REGION:ap-south-1}
+  access-key-id: ${AWS_ACCESS_KEY_ID:}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+  kms:
+    key-id: ${AWS_KMS_KEY_ID:}
+
+# ===================================================================
+# MFA CONFIG
+# ===================================================================
+
+mfa:
+  secret-encryption-key: ${MFA_SECRET_ENCRYPTION_KEY:}
+
+# ===================================================================
+# LOCKOUT / PERMISSION CACHE
+# ===================================================================
+
+lockout:
+  max-attempts: 5
+  window-minutes: 15
+  lock-duration-minutes: 15
+
+permission-cache:
+  ttl-minutes: 5
+
+# ===================================================================
+# INTERNAL SERVICE AUTH
+# ===================================================================
+
+internal-service-secret: ${INTERNAL_SERVICE_SECRET}
+
+# ===================================================================
+# SWAGGER
+# ===================================================================
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v1/docs/openapi.json
+  swagger-ui:
+    enabled: true
+    path: /v1/docs
+    operationsSorter: method
+    tagsSorter: alpha
+    disable-swagger-default-url: true
+    document-title: Gen_AUTH Demo
+  show-actuator: false
+
+# ===================================================================
+# CUSTOM AUTH CONFIG
+# ===================================================================
+
+auth:
+  registration-mode: ${REGISTRATION_MODE:open}
+  token-delivery-mode: ${TOKEN_DELIVERY_MODE:cookie}
+
+  session:
+    concurrent-session-limit: 5
+
+  refresh-token:
+    rotate-on-refresh: true
+    one-time-use: true
+
+  permission-cache:
+    enabled: true
+
+  audit:
+    enabled: true
+
+  magic-link:
+    frontend-reset-url: http://localhost:3000/reset-password
+
+  super-admin:
+    email: ${SUPER_ADMIN_EMAIL:}
+    password: ${SUPER_ADMIN_PASSWORD:}
+
+# ===================================================================
+# MAIL PROVIDER (only read when app.email.enabled=true)
+# ===================================================================
+
+mail:
+  provider: smtp

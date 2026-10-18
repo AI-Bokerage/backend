@@ -1,0 +1,77 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+description = 'gen-adm-demo'
+
+// ponytail: same repositories gap as gen-adm-starter/build.gradle — see
+// note there and task-1-report.md Fix section.
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// ponytail: org.springframework.boot Gradle plugin manages spring-boot-dependencies
+// for us, but not the Testcontainers BOM — gen-adm-starter's build.gradle imports it
+// explicitly for the same reason, matched here so testcontainers versions agree.
+ext {
+    testcontainersVersion = '1.21.3'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
+    }
+}
+
+dependencies {
+    implementation project(':gen-adm-starter')
+    // gen-adm-starter declares its Spring Boot deps as `implementation`,
+    // which java-library does not expose transitively to a consumer's
+    // compile classpath — this module needs its own spring-boot-starter
+    // for @SpringBootApplication to resolve.
+    implementation 'org.springframework.boot:spring-boot-starter'
+    // Same reason: DemoPrincipalAuthFilter/DemoBootstrapController need
+    // servlet/MVC and Spring Security types at compile time, even though
+    // gen-adm-starter already pulls both in on the runtime classpath.
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Real test-scoped Postgres so gen-adm-starter's RoleRepository/PermissionRepository/
+    // UserRoleAssignmentRepository beans (needed by Task 4's @Service beans) actually
+    // resolve during gen-adm-demo's own @SpringBootTest, instead of excluding JPA
+    // autoconfiguration. Coordinates matched to gen-adm-starter/build.gradle.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('bootRun') {
+    def envFile = file("${projectDir}/.env")
+    if (envFile.exists()) {
+        envFile.readLines().each { line ->
+            def trimmed = line.trim()
+            if (trimmed && !trimmed.startsWith('#')) {
+                def idx = trimmed.indexOf('=')
+                if (idx > 0) {
+                    environment(trimmed.substring(0, idx).trim(), trimmed.substring(idx + 1).trim())
+                }
+            }
+        }
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

@@ -1,0 +1,2 @@
+rootProject.name = 'gen-auth'
+include(':gen-auth-starter', ':gen-auth-demo')

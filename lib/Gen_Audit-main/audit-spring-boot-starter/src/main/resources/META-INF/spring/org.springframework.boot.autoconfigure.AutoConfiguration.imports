@@ -1,0 +1,9 @@
+com.company.audit.spring.autoconfigure.AuditMetricsAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditJpaAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditMongoAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditCoreAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditIngestionAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditRabbitAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditVerificationAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditAnchorAutoConfiguration
+com.company.audit.spring.autoconfigure.AuditHealthAutoConfiguration

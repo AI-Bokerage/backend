@@ -1,0 +1,104 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.company'
+version = '0.0.1-SNAPSHOT'
+description = 'bsm-svc'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+                                                                                                                                                                                                                                                                             
+ext {
+    mapstructVersion = '1.6.3'
+    resilience4jVersion = '2.4.0'
+    springdocVersion = '3.0.3'
+    testcontainersVersion = '1.21.4'
+    stripeVersion = '25.10.0'
+    razorpayVersion = '1.4.5'
+}
+
+dependencies {
+    implementation project(':bsm-core')
+    implementation project(':libs:java-common')
+
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly    'io.micrometer:micrometer-registry-prometheus'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.apache.commons:commons-pool2'
+
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'com.github.librepdf:openpdf:1.3.29'
+    implementation 'software.amazon.awssdk:s3:2.20.57'
+    implementation 'software.amazon.awssdk:auth:2.20.57'
+    implementation 'com.amazonaws:aws-java-sdk-s3:1.12.563'
+
+    implementation "io.github.resilience4j:resilience4j-spring-boot4:${resilience4jVersion}"
+
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    implementation "com.stripe:stripe-java:${stripeVersion}"
+    implementation "com.razorpay:razorpay-java:${razorpayVersion}"
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.amqp:spring-rabbit-test'
+    testImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
+    testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testAnnotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named('bootRun') {
+    jvmArgs = ['-Xmx384m', '-Xms128m']
+    def envFile = file("${projectDir}/.env")
+    if (envFile.exists()) {
+        envFile.readLines().each { line ->
+            def trimmed = line.trim()
+            if (trimmed && !trimmed.startsWith('#')) {
+                def idx = trimmed.indexOf('=')
+                if (idx > 0) {
+                    environment(trimmed.substring(0, idx).trim(), trimmed.substring(idx + 1).trim())
+                }
+            }
+        }
+    }
+}

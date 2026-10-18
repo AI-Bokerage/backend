@@ -1,0 +1,13 @@
+allprojects {
+    group = 'com.example'
+    version = '0.0.1-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+
+        // Required for OpenSAML dependencies (transitively pulled by spring-security-saml2-service-provider)
+        maven {
+            url = "https://build.shibboleth.net/nexus/content/repositories/releases/"
+        }
+    }
+}

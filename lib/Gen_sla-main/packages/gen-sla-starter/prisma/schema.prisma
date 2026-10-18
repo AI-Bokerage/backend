@@ -1,0 +1,112 @@
+// packages/gen-sla-starter/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../__generated__/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SlaPolicy {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  name         String    @db.VarChar(128)
+  entityType   String    @map("entity_type") @db.VarChar(64)
+  slaType      String    @map("sla_type") @db.VarChar(64)
+  durationMins Int       @map("duration_mins")
+  warningMins  Int       @map("warning_mins")
+  isEnabled    Boolean   @default(true) @map("is_enabled")
+  description  String?   @db.Text
+  createdBy    String?   @map("created_by") @db.VarChar(120)
+  updatedBy    String?   @map("updated_by") @db.VarChar(120)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  instances SlaInstance[]
+
+  @@unique([tenantId, entityType, slaType])
+  @@index([tenantId])
+  @@index([tenantId, entityType])
+  @@index([isEnabled])
+  @@map("sla_policies")
+}
+
+model SlaInstance {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  policyId    String    @map("policy_id") @db.Uuid
+  entityType  String    @map("entity_type") @db.VarChar(64)
+  entityId    String    @map("entity_id") @db.Uuid
+  slaType     String    @map("sla_type") @db.VarChar(64)
+  status      String    @default("ACTIVE") @db.VarChar(16)
+  startedAt   DateTime  @map("started_at") @db.Timestamptz(6)
+  dueAt       DateTime  @map("due_at") @db.Timestamptz(6)
+  warningAt   DateTime  @map("warning_at") @db.Timestamptz(6)
+  breachedAt  DateTime? @map("breached_at") @db.Timestamptz(6)
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz(6)
+  metadata    Json      @default("{}") @db.JsonB
+
+  policy      SlaPolicy       @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  history     SlaHistory[]
+  escalations SlaEscalation[]
+
+  @@unique([tenantId, entityId, slaType])
+  @@index([tenantId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([warningAt])
+  @@index([tenantId, entityType, status])
+  @@index([tenantId, status, dueAt])
+  @@map("sla_instances")
+}
+
+model SlaHistory {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  instanceId String    @map("instance_id") @db.Uuid
+  fromStatus String?   @map("from_status") @db.VarChar(16)
+  toStatus   String    @map("to_status") @db.VarChar(16)
+  note       String?   @db.Text
+  occurredAt DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  instance SlaInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
+  @@index([tenantId, occurredAt])
+  @@map("sla_history")
+}
+
+model SlaEscalation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  instanceId  String   @map("instance_id") @db.Uuid
+  level       Int      @default(1)
+  eventType   String   @map("event_type") @db.VarChar(64)
+  notified    Boolean  @default(false)
+  escalatedAt DateTime @default(now()) @map("escalated_at") @db.Timestamptz(6)
+
+  instance SlaInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
+  @@index([tenantId, escalatedAt])
+  @@map("sla_escalations")
+}
+
+model SlaOutboxEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  eventType  String   @map("event_type") @db.VarChar(128)
+  exchange   String   @db.VarChar(128)
+  routingKey String   @map("routing_key") @db.VarChar(128)
+  payload    Json     @db.JsonB
+  status     String   @default("PENDING") @db.VarChar(16)
+  retryCount Int      @default(0) @map("retry_count")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@index([tenantId])
+  @@map("sla_outbox_events")
+}

@@ -1,0 +1,47 @@
+// packages/gen-sup-starter/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../__generated__/prisma"
+  // Same fix as gen-usg-starter's schema.prisma, applied preemptively:
+  // Prisma 5.x's musl+OpenSSL auto-detection can guess openssl-1.1.x for a
+  // node:20-alpine (OpenSSL 3.x since Alpine 3.17+) runtime, which crashes
+  // at the first real query with "libssl.so.1.1: No such file or directory".
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Announcement {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String    @db.VarChar(500)
+  body          String
+  type          String    @default("INFO") @db.VarChar(24)
+  targetSegment String    @default("ALL") @map("target_segment") @db.VarChar(64)
+  channels      String[]
+  scheduledFor  DateTime? @map("scheduled_for") @db.Timestamptz(6)
+  sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdBy     String    @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([sentAt])
+  @@index([scheduledFor])
+  @@map("announcements")
+}
+
+model RevenueSnapshot {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  period                  String   @db.VarChar(16)
+  capturedAt              DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+  totalMrr                Float    @map("total_mrr")
+  totalArr                Float    @map("total_arr")
+  averageRevenuePerTenant Float    @map("average_revenue_per_tenant")
+  byPlan                  Json     @map("by_plan")
+  byRegion                Json     @map("by_region")
+  planDistribution        Json     @map("plan_distribution")
+
+  @@index([period, capturedAt])
+  @@map("revenue_snapshots")
+}

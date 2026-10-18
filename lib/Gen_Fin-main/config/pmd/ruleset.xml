@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<ruleset name="genfin"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>Gen-Fin PMD ruleset</description>
+
+    <rule ref="category/java/errorprone.xml">
+        <!-- Conflicts with the field-matches-accessor convention used throughout (and by Java records themselves). -->
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <!-- Framework exceptions/value types are never java.io-serialized across a wire; the field is dead weight. -->
+        <exclude name="MissingSerialVersionUID"/>
+        <!-- One-time null-out after lazy evaluation is deliberate, not a smell. -->
+        <exclude name="NullAssignment"/>
+        <!-- Repeated literal test fixture values ("abc", key names) read clearer inline than as extracted constants. -->
+        <exclude name="AvoidDuplicateLiterals"/>
+        <!-- False positive on non-JUnit helper types nested inside test classes (e.g. a fixture named *Test). -->
+        <exclude name="TestClassWithoutTestCases"/>
+    </rule>
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="GuardLogStatement"/>
+        <!-- One test, one scenario, several related AssertJ assertions is the idiomatic style here. -->
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+        <!-- ArchUnit's own API requires its concrete JavaClasses type; there is no interface alternative. -->
+        <exclude name="LooseCoupling"/>
+        <!-- False positive on Spring's ApplicationContextRunner#run(ContextConsumer) tests: the
+             assertion is inside a lambda passed to run(), which PMD's static analysis doesn't see. -->
+        <exclude name="UnitTestShouldIncludeAssert"/>
+    </rule>
+</ruleset>

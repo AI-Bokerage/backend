@@ -1,0 +1,2 @@
+ALTER TABLE tenant_billing_profiles
+    ADD COLUMN IF NOT EXISTS currency VARCHAR(10) NOT NULL DEFAULT 'INR';

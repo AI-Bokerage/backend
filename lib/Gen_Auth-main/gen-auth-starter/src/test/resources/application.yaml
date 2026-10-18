@@ -1,0 +1,44 @@
+# ─── Test-only overrides ─────────────────────────────────────────────────────
+# Disables every auto-configuration that requires live infrastructure so that
+# @SpringBootTest context loads without a running Postgres / Redis / RabbitMQ.
+#
+# NOTE: Spring Boot 4 moved autoconfiguration to per-module packages.
+# All class names below are Spring Boot 4.x FQCNs confirmed from the JARs.
+#
+# Individual integration tests that need infrastructure should use
+# @Testcontainers + @ActiveProfiles("integration") instead.
+
+spring:
+  autoconfigure:
+    exclude:
+      # ── JDBC / DataSource ──────────────────────────────────────────────────
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceInitializationAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      # ── JPA / Hibernate ───────────────────────────────────────────────────
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+      # ── Redis / Valkey ────────────────────────────────────────────────────
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
+      # ── RabbitMQ ──────────────────────────────────────────────────────────
+      - org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration
+      # ── OAuth2 Resource Server (JWT issuer-uri discovery requires live OIDC)
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration
+
+  # Disable Spring Session Redis (no Redis in unit tests)
+  session:
+    store-type: none
+
+  # Disable Flyway (no DB in unit tests)
+  flyway:
+    enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+# Test stubs for @Value-injected secrets
+internal-service-secret: test-secret-for-context-load
+jwt.key-encryption-secret: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=

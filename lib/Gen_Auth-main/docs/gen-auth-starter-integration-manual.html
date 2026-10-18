@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integrating gen-auth-starter</title>
+<style>
+  :root{
+    --bg:#f3f5ef;
+    --bg-panel:#ffffff;
+    --bg-code:#eef1e9;
+    --border:#d9ddd0;
+    --ink:#182430;
+    --ink-soft:#54626b;
+    --brass:#a8721f;
+    --brass-strong:#8a5c17;
+    --brass-ink:#1b1206;
+    --green:#3f7d52;
+    --red:#a33d2c;
+    --code-text:#1d2b1f;
+    --shadow: 0 1px 2px rgba(24,36,48,.06), 0 8px 24px rgba(24,36,48,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1e30;
+      --bg-panel:#152740;
+      --bg-code:#0c1926;
+      --border:#25415c;
+      --ink:#e7edf3;
+      --ink-soft:#9fb2c4;
+      --brass:#e3a94a;
+      --brass-strong:#f0bd6a;
+      --brass-ink:#1b1206;
+      --green:#75c496;
+      --red:#e2836a;
+      --code-text:#d3e6d8;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:Charter,"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    text-wrap:balance;
+    font-weight:600;
+    color:var(--ink);
+  }
+  code, pre, .mono{
+    font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  a{color:var(--brass-strong);}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+
+  /* ---------- top manifest bar ---------- */
+  .manifest{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:.35rem 1.1rem;
+    padding:.65rem 1.5rem;
+    background:var(--ink);
+    color:var(--bg);
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:.72rem;
+    letter-spacing:.03em;
+  }
+  .manifest span{opacity:.85;}
+  .manifest strong{color:var(--brass);font-weight:600;opacity:1;}
+  .manifest .sep{opacity:.35;}
+
+  /* ---------- shell layout ---------- */
+  .shell{
+    display:grid;
+    grid-template-columns: 280px minmax(0,1fr);
+    max-width:1240px;
+    margin:0 auto;
+  }
+  @media (max-width: 880px){
+    .shell{grid-template-columns: 1fr;}
+    .toc{position:static !important; height:auto !important; border-right:none !important; border-bottom:1px solid var(--border);}
+  }
+
+  /* ---------- table of contents ---------- */
+  .toc{
+    position:sticky;
+    top:0;
+    align-self:start;
+    height:100vh;
+    overflow-y:auto;
+    padding:2rem 1.25rem 2rem 1.5rem;
+    border-right:1px solid var(--border);
+  }
+  .toc .kicker{
+    font-size:.68rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin:0 0 .9rem;
+  }
+  .toc ol{
+    list-style:none;
+    margin:0;
+    padding:0;
+    counter-reset:chapter;
+  }
+  .toc li{counter-increment:chapter;}
+  .toc a{
+    display:flex;
+    gap:.65rem;
+    align-items:baseline;
+    text-decoration:none;
+    color:var(--ink-soft);
+    font-size:.9rem;
+    padding:.4rem .5rem;
+    border-radius:6px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .toc a::before{
+    content:counter(chapter,decimal-leading-zero);
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:.72rem;
+    color:var(--brass);
+    flex:none;
+    padding-top:.1rem;
+  }
+  .toc a:hover{background:var(--bg-code); color:var(--ink);}
+  .toc a.active{color:var(--ink); background:var(--bg-code); font-weight:600;}
+
+  /* ---------- main content ---------- */
+  main{padding:2.75rem clamp(1.25rem,4vw,3.25rem) 6rem;}
+  .lede{
+    max-width:62ch;
+    color:var(--ink-soft);
+    font-size:1.05rem;
+  }
+  h1.title{font-size:clamp(1.8rem,3vw,2.35rem); margin:0 0 .5rem;}
+  .scope-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:1rem;
+    margin:1.75rem 0 2.5rem;
+  }
+  @media (max-width:640px){.scope-grid{grid-template-columns:1fr;}}
+  .scope-card{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:1.1rem 1.25rem;
+    box-shadow:var(--shadow);
+  }
+  .scope-card h3{font-size:.95rem; margin:0 0 .6rem; font-family:inherit;}
+  .scope-card.in h3{color:var(--green);}
+  .scope-card.out h3{color:var(--red);}
+  .scope-card ul{margin:0; padding-left:1.1rem; font-size:.88rem; color:var(--ink-soft);}
+  .scope-card li{margin-bottom:.3rem;}
+
+  section.chapter{
+    padding-top:3.4rem;
+    margin-top:.5rem;
+    border-top:1px solid var(--border);
+    scroll-margin-top: 1rem;
+  }
+  section.chapter:first-of-type{border-top:none;}
+  .chapter-head{
+    display:flex;
+    align-items:baseline;
+    gap:1rem;
+    margin-bottom:.35rem;
+  }
+  .chapter-num{
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:1.6rem;
+    color:var(--brass);
+    font-weight:600;
+  }
+  .chapter-head h2{font-size:1.4rem; margin:0;}
+  .chapter-sub{color:var(--ink-soft); font-size:.92rem; margin:.15rem 0 1.4rem;}
+
+  p{max-width:68ch;}
+  .step{
+    margin:1.6rem 0;
+    padding-left:1.2rem;
+    border-left:2px solid var(--border);
+  }
+  .step h4{
+    margin:0 0 .5rem;
+    font-size:.95rem;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-weight:600;
+  }
+  .step p{color:var(--ink-soft); font-size:.92rem; margin:.4rem 0 .8rem;}
+
+  pre{
+    background:var(--bg-code);
+    color:var(--code-text);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:1rem 1.15rem;
+    overflow-x:auto;
+    font-size:.82rem;
+    line-height:1.6;
+    margin:.6rem 0 1rem;
+  }
+  pre .file-tag{
+    display:block;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.68rem;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:.55rem;
+  }
+  code.inline{
+    background:var(--bg-code);
+    border:1px solid var(--border);
+    padding:.05rem .35rem;
+    border-radius:4px;
+    font-size:.86em;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:.85rem;
+    margin:1rem 0 1.6rem;
+  }
+  table caption{
+    text-align:left;
+    font-size:.68rem;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:.5rem;
+  }
+  th,td{
+    text-align:left;
+    padding:.55rem .7rem;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+  }
+  th{
+    font-size:.72rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    font-weight:600;
+  }
+  td code.inline{white-space:nowrap;}
+  .req-yes{color:var(--red); font-weight:600; font-size:.8rem;}
+  .req-no{color:var(--ink-soft); font-size:.8rem;}
+
+  .callout{
+    border:1px solid var(--border);
+    border-left:3px solid var(--brass);
+    background:var(--bg-panel);
+    border-radius:8px;
+    padding:.9rem 1.1rem;
+    margin:1rem 0 1.5rem;
+    font-size:.88rem;
+    box-shadow:var(--shadow);
+  }
+  .callout .tag{
+    display:block;
+    font-size:.68rem;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--brass-strong);
+    margin-bottom:.35rem;
+    font-weight:700;
+  }
+  .callout.warn{border-left-color:var(--red);}
+  .callout.warn .tag{color:var(--red);}
+  .callout p{margin:.2rem 0; max-width:none; color:var(--ink);}
+
+  .endpoint-method{
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:.72rem;
+    font-weight:700;
+    padding:.1rem .4rem;
+    border-radius:4px;
+    background:var(--bg-code);
+    border:1px solid var(--border);
+  }
+
+  footer.colophon{
+    max-width:68ch;
+    margin-top:3.5rem;
+    padding-top:1.5rem;
+    border-top:1px solid var(--border);
+    color:var(--ink-soft);
+    font-size:.8rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="manifest">
+  <span><strong>com.example</strong>:gen-auth-starter</span>
+  <span class="sep">·</span>
+  <span>version <strong>0.0.1-SNAPSHOT</strong></span>
+  <span class="sep">·</span>
+  <span>Java <strong>21</strong></span>
+  <span class="sep">·</span>
+  <span>Spring Boot <strong>4.0.6</strong></span>
+  <span class="sep">·</span>
+  <span>Gradle <strong>9.4</strong></span>
+</div>
+
+<div class="shell">
+  <nav class="toc" id="toc">
+    <p class="kicker">Integration field manual</p>
+    <ol>
+      <li><a href="#ch-scope">What you're embedding</a></li>
+      <li><a href="#ch-repo">Add the package repository</a></li>
+      <li><a href="#ch-dependency">Declare the dependency</a></li>
+      <li><a href="#ch-keys">Generate the JWT signing keypair</a></li>
+      <li><a href="#ch-config">Write your application.yaml</a></li>
+      <li><a href="#ch-env">Set the environment variables</a></li>
+      <li><a href="#ch-optional">Optional features (email, super-admin, messaging, MFA)</a></li>
+      <li><a href="#ch-db">Database &amp; migrations</a></li>
+      <li><a href="#ch-boot">Boot it and verify</a></li>
+      <li><a href="#ch-endpoints">Endpoint reference</a></li>
+      <li><a href="#ch-security">If you have your own SecurityFilterChain</a></li>
+      <li><a href="#ch-gotchas">Field notes &amp; gotchas</a></li>
+      <li><a href="#ch-local">No package registry yet? Use mavenLocal</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <h1 class="title">Integrating gen-auth-starter</h1>
+    <p class="lede">A Spring Boot starter that drops a complete, self-contained auth module &mdash; register, login, refresh rotation, logout, sessions, JWKS with runtime key rotation, plus optional email/magic-link, super-admin/impersonation, RabbitMQ events, and TOTP MFA &mdash; into any Java project. This is the exact, ordered sequence to embed it in a project that has never seen it before, end to end.</p>
+
+    <section class="chapter" id="ch-scope">
+      <div class="chapter-head"><span class="chapter-num">00</span><h2>What you're embedding</h2></div>
+      <p class="chapter-sub">One dependency, one auto-configuration class, its own database tables. Nothing shared back to the source project after you pull the artifact.</p>
+
+      <div class="scope-grid">
+        <div class="scope-card in">
+          <h3>Included, always on</h3>
+          <ul>
+            <li>Register / login / refresh (rotation + replay detection) / logout / logout-all</li>
+            <li>Session lookup, change-password</li>
+            <li>JWKS serving + runtime multi-key rotation (local signing mode)</li>
+            <li>Argon2id hashing, Redis-backed lockout</li>
+            <li>Internal user-provisioning endpoint</li>
+            <li>Cookie or JSON token delivery, toggled by property</li>
+          </ul>
+        </div>
+        <div class="scope-card out">
+          <h3>Not in this module</h3>
+          <p>Nothing left &mdash; everything from the original scope, OAuth login included, is now built and shipped in the starter.</p>
+        </div>
+      </div>
+
+      <div class="scope-grid">
+        <div class="scope-card in">
+          <h3>Included, optional (off by default)</h3>
+          <ul>
+            <li>Email sending (SMTP/SES) + magic-link password reset</li>
+            <li>Super-admin login, bootstrap, impersonation-token issuance</li>
+            <li>RabbitMQ event publishing (login/logout/password-changed/impersonation)</li>
+            <li>TOTP multi-factor auth + backup codes, per-tenant enforcement</li>
+            <li>OAuth / social login &mdash; done (Spring Security OAuth2 Client, any OIDC provider)</li>
+          </ul>
+        </div>
+        <div class="scope-card">
+          <h3 style="color:var(--brass-strong)">The optional-feature pattern</h3>
+          <ul>
+            <li>Every one of these is a single <code class="inline">app.*.enabled</code> flag, default <code class="inline">false</code></li>
+            <li>Off means zero cost: no beans registered, no required env vars, no connection attempted</li>
+            <li>See chapter 06 for exact flags, env vars, and config for each</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>Everything under <code class="inline">com.example.authsvc.*</code> ships inside the jar and is discovered automatically via <code class="inline">META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</code> &mdash; regardless of your own application's base package. You will not write a <code class="inline">@ComponentScan</code>, <code class="inline">@EntityScan</code>, or <code class="inline">@Import</code> anywhere in your own code. That work is done once, inside the starter, by <code class="inline">GenAuthAutoConfiguration</code>.</p>
+    </section>
+
+    <section class="chapter" id="ch-repo">
+      <div class="chapter-head"><span class="chapter-num">01</span><h2>Add the package repository</h2></div>
+      <p class="chapter-sub">The starter is a private Maven artifact on GitHub Packages. Your build needs to know where to find it and how to authenticate.</p>
+
+      <div class="step">
+        <h4>Add the GitHub Packages repository to your build</h4>
+        <p>In the consuming project's root <code class="inline">build.gradle</code>, alongside your existing repositories:</p>
+        <pre><span class="file-tag">build.gradle</span>repositories {
+    mavenCentral()
+
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/YOUR_GITHUB_ORG/Gen_Auth")
+        credentials {
+            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("gpr.token") ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+
+    // Required transitively: spring-security-saml2-service-provider pulls in
+    // OpenSAML, which only resolves from Shibboleth's own repository.
+    maven {
+        url = "https://build.shibboleth.net/nexus/content/repositories/releases/"
+    }
+}</pre>
+      </div>
+
+      <div class="step">
+        <h4>Authenticate against GitHub Packages</h4>
+        <p>GitHub Packages requires a Personal Access Token with <code class="inline">read:packages</code> scope, even for a public-looking read. Put it in your per-user Gradle properties, never in the project itself:</p>
+        <pre><span class="file-tag">~/.gradle/gradle.properties</span>gpr.user=your-github-username
+gpr.token=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre>
+        <p>CI runners should instead export <code class="inline">GITHUB_ACTOR</code> / <code class="inline">GITHUB_TOKEN</code> &mdash; the block above falls back to those automatically.</p>
+      </div>
+
+      <div class="callout warn">
+        <span class="tag">Current state of this repo</span>
+        <p>The publish config's target org, <code class="inline">YOUR_GITHUB_ORG</code>, is still a placeholder &mdash; nobody has pointed it at a real GitHub org yet, so a real remote publish/consume has not happened. If you're integrating today, skip to chapter 12 and use <code class="inline">mavenLocal()</code> instead. Come back to this chapter once the org is filled in and a version is actually published.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-dependency">
+      <div class="chapter-head"><span class="chapter-num">02</span><h2>Declare the dependency</h2></div>
+      <p class="chapter-sub">One implementation dependency, plus one you might not expect.</p>
+
+      <div class="step">
+        <h4>Add the starter to your application module</h4>
+        <pre><span class="file-tag">app/build.gradle</span>plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+dependencies {
+    implementation 'com.example:gen-auth-starter:0.0.1-SNAPSHOT'
+
+    // gen-auth-starter is a java-library module: its own Spring Boot
+    // dependencies are declared `implementation`, which java-library does
+    // NOT expose transitively to a consumer's compile classpath (only `api`
+    // dependencies are). Your own @SpringBootApplication class needs this
+    // directly on your classpath regardless.
+    implementation 'org.springframework.boot:spring-boot-starter'
+}</pre>
+      </div>
+
+      <div class="callout">
+        <span class="tag">Version alignment</span>
+        <p>The starter is built and tested against Spring Boot <strong>4.0.6</strong> on Java <strong>21</strong>. Import the same BOM your consuming app already uses via <code class="inline">io.spring.dependency-management</code>, or apply the <code class="inline">org.springframework.boot</code> Gradle plugin as shown above &mdash; either keeps transitive versions aligned with what the starter was verified against.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-keys">
+      <div class="chapter-head"><span class="chapter-num">03</span><h2>Generate the JWT signing keypair</h2></div>
+      <p class="chapter-sub">Local signing mode (the default) reads an RSA keypair from your classpath. Generate your own &mdash; never reuse a keypair from another deployment.</p>
+
+      <pre><span class="file-tag">terminal</span>mkdir -p src/main/resources/keys
+openssl genrsa -out src/main/resources/keys/private.pem 2048
+openssl rsa -in src/main/resources/keys/private.pem \
+    -pubout -out src/main/resources/keys/public.pem</pre>
+
+      <div class="callout warn">
+        <span class="tag">Do not commit these</span>
+        <p>Add <code class="inline">src/main/resources/keys/private.pem</code> and <code class="inline">public.pem</code> to your <code class="inline">.gitignore</code> before your first commit, not after. A real private key sat briefly in this project's own git history during development for exactly this reason &mdash; it was scrubbed via squash-merge before reaching <code class="inline">main</code>, but the safer move is to never let it happen at all.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-config">
+      <div class="chapter-head"><span class="chapter-num">04</span><h2>Write your application.yaml</h2></div>
+      <p class="chapter-sub">The starter ships no root <code class="inline">application.yaml</code> of its own &mdash; every property below belongs in your consuming project's own config.</p>
+
+      <pre><span class="file-tag">src/main/resources/application.yaml</span>spring:
+  main:
+    allow-bean-definition-overriding: true   # see chapter 11 if you skip this
+
+  datasource:
+    url: ${AUTH_DB_URL}
+    username: ${AUTH_DB_USERNAME}
+    password: ${AUTH_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate     # the starter owns its own schema via Flyway, see ch. 07
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+app:
+  cors:
+    allowed-origins: [ "http://localhost:3000" ]
+    allowed-methods: [ GET, POST, PUT, PATCH, DELETE, OPTIONS ]
+    allowed-headers: [ Authorization, Content-Type, Accept, X-Requested-With ]
+    allow-credentials: true
+    max-age: 3600
+  cookie:
+    domain: ${COOKIE_DOMAIN:}
+    secure: ${COOKIE_SECURE:false}
+    http-only: true
+    same-site: Strict
+    path: /
+
+jwt:
+  issuer: ${JWT_ISSUER:https://auth.example.com}
+  audience: ${JWT_AUDIENCE:example-api}
+  key-id: auth-key-v1
+  signing-mode: local
+  active-kid: auth-key-v1
+  access-token:
+    expiration-minutes: 15
+  refresh-token:
+    expiration-days: 7
+  keys:
+    - kid: auth-key-v1
+      private-key-path: classpath:keys/private.pem
+      public-key-path: classpath:keys/public.pem
+  key-encryption-secret: ${JWT_KEY_ENCRYPTION_SECRET}
+
+internal-service-secret: ${INTERNAL_SERVICE_SECRET}
+
+auth:
+  registration-mode: ${REGISTRATION_MODE:open}     # open | disabled
+  token-delivery-mode: ${TOKEN_DELIVERY_MODE:cookie} # cookie | json
+  session:
+    concurrent-session-limit: 5
+  refresh-token:
+    rotate-on-refresh: true
+    one-time-use: true</pre>
+
+      <p>Every block above binds to a plain <code class="inline">@ConfigurationProperties</code> class the starter registers via <code class="inline">@ConfigurationPropertiesScan</code> &mdash; <code class="inline">JwtProperties</code>, <code class="inline">CookieProperties</code>, <code class="inline">CorsProperties</code>, <code class="inline">AuthBehaviorProperties</code>. None of them are beans you declare; they only exist because they were scanned.</p>
+    </section>
+
+    <section class="chapter" id="ch-env">
+      <div class="chapter-head"><span class="chapter-num">05</span><h2>Set the environment variables</h2></div>
+      <p class="chapter-sub">No <code class="inline">.env</code> file is loaded automatically. Export these in your shell, your process manager, or your container definition.</p>
+
+      <table>
+        <caption>Required and optional environment variables</caption>
+        <thead>
+          <tr><th>Variable</th><th>Required</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code class="inline">AUTH_DB_URL</code></td><td class="req-yes">yes</td><td>Postgres JDBC URL</td></tr>
+          <tr><td><code class="inline">AUTH_DB_USERNAME</code></td><td class="req-yes">yes</td><td>&nbsp;</td></tr>
+          <tr><td><code class="inline">AUTH_DB_PASSWORD</code></td><td class="req-yes">yes</td><td>&nbsp;</td></tr>
+          <tr><td><code class="inline">JWT_KEY_ENCRYPTION_SECRET</code></td><td class="req-yes">yes</td><td>32-byte value, base64. Generate with <code class="inline">openssl rand -base64 32</code>. Required at boot even if you never call the rotation endpoints &mdash; the starter fails fast without it.</td></tr>
+          <tr><td><code class="inline">INTERNAL_SERVICE_SECRET</code></td><td class="req-yes">yes</td><td>Gates every <code class="inline">/internal/**</code> route (admin user provisioning, JWKS rotation)</td></tr>
+          <tr><td><code class="inline">JWT_ISSUER</code>, <code class="inline">JWT_AUDIENCE</code></td><td class="req-no">no</td><td>Defaults exist; override for your own <code class="inline">iss</code>/<code class="inline">aud</code> claims</td></tr>
+          <tr><td><code class="inline">REGISTRATION_MODE</code></td><td class="req-no">no</td><td><code class="inline">open</code> (default) or <code class="inline">disabled</code></td></tr>
+          <tr><td><code class="inline">TOKEN_DELIVERY_MODE</code></td><td class="req-no">no</td><td><code class="inline">cookie</code> (default) or <code class="inline">json</code>, for mobile/cross-origin clients</td></tr>
+          <tr><td><code class="inline">COOKIE_DOMAIN</code>, <code class="inline">COOKIE_SECURE</code></td><td class="req-no">no</td><td>Set <code class="inline">COOKIE_SECURE=true</code> the moment you're behind HTTPS</td></tr>
+          <tr><td><code class="inline">AWS_ACCESS_KEY_ID</code>, <code class="inline">AWS_SECRET_ACCESS_KEY</code></td><td class="req-no">no</td><td>Only read when <code class="inline">jwt.signing-mode=kms</code>. Blank uses the SDK's default credential chain.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="chapter" id="ch-optional">
+      <div class="chapter-head"><span class="chapter-num">06</span><h2>Optional features</h2></div>
+      <p class="chapter-sub">Four subsystems, each gated by its own <code class="inline">app.*.enabled</code> flag, default <code class="inline">false</code>. Off means genuinely off &mdash; no bean registered, no connection attempted, no env var required. Turn on only what you need.</p>
+
+      <div class="step">
+        <h4>Email sending + magic-link password reset</h4>
+        <p><code class="inline">app.email.enabled</code> (default <code class="inline">false</code>) registers either an SMTP or SES <code class="inline">EmailProvider</code>, selected by <code class="inline">app.email.provider</code> (<code class="inline">smtp</code> default, or <code class="inline">ses</code>). <code class="inline">app.magic-link.enabled</code> additionally <strong>hard-requires</strong> <code class="inline">app.email.enabled=true</code> &mdash; a magic link with no way to deliver it is a broken feature, not a partial one, and the starter fails fast at boot if you enable one without the other.</p>
+        <pre><span class="file-tag">application.yaml</span>app:
+  email:
+    enabled: true
+    provider: smtp   # smtp | ses
+  magic-link:
+    enabled: true
+
+mail:
+  provider: smtp
+
+spring:
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
+auth:
+  magic-link:
+    frontend-reset-url: https://your-app.example.com/reset-password</pre>
+        <p>SES mode reuses the same <code class="inline">AWS_ACCESS_KEY_ID</code>/<code class="inline">AWS_SECRET_ACCESS_KEY</code> variables as KMS signing mode (chapter 05) &mdash; blank falls back to the SDK's default credential chain either way. Endpoints: <code class="inline">POST /api/v1/auth/magic-link/issue</code>, <code class="inline">POST /api/v1/auth/magic-link/verify</code> (full reference in chapter 09).</p>
+      </div>
+
+      <div class="step">
+        <h4>Super-admin login, bootstrap, and impersonation</h4>
+        <p><code class="inline">app.super-admin.enabled</code> (default <code class="inline">false</code>) gates a platform-super-admin account &mdash; separate from <code class="inline">auth_users</code> by design &mdash; plus impersonation-token issuance. It <strong>hard-requires both</strong> <code class="inline">app.email.enabled=true</code> and <code class="inline">app.magic-link.enabled=true</code> (the super-admin's password-reset flow reuses the same Redis-backed magic-link store), enforced by a fail-fast <code class="inline">@PostConstruct</code> validator, not just documentation.</p>
+        <pre><span class="file-tag">application.yaml</span>app:
+  super-admin:
+    enabled: true
+
+auth:
+  super-admin:
+    email: ${SUPER_ADMIN_EMAIL}
+    password: ${SUPER_ADMIN_PASSWORD}</pre>
+        <p><code class="inline">SUPER_ADMIN_EMAIL</code>/<code class="inline">SUPER_ADMIN_PASSWORD</code> seed the bootstrap account on first boot only &mdash; change the password immediately after first login. Endpoints: <code class="inline">POST /api/v1/auth/super-admin/login</code>, <code class="inline">POST /api/v1/auth/super-admin/reset-password/issue</code>, <code class="inline">POST /api/v1/auth/super-admin/reset-password/verify</code>, and internally <code class="inline">POST /internal/auth/impersonation-token</code> (guarded by the same <code class="inline">X-Internal-Secret</code> mechanism as every other internal route &mdash; no bespoke auth scheme).</p>
+      </div>
+
+      <div class="step">
+        <h4>RabbitMQ event publishing</h4>
+        <p><code class="inline">app.messaging.enabled</code> (default <code class="inline">false</code>) turns on outbound-only event publishing &mdash; login success/failed, logout, password-changed, impersonation-started &mdash; onto a single topic exchange, name configurable via <code class="inline">app.messaging.exchange</code> (default <code class="inline">auth.events</code>). The starter declares only the exchange; it never declares queues or bindings &mdash; that topology is entirely yours to own as the consumer.</p>
+        <pre><span class="file-tag">application.yaml</span>app:
+  messaging:
+    enabled: true
+    exchange: auth.events
+
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}</pre>
+        <p>No HTTP surface &mdash; this is fire-and-forget on the existing async executor, and a publish failure (broker unreachable) is caught and logged, never propagated back into the auth request that triggered it.</p>
+      </div>
+
+      <div class="step">
+        <h4>MFA &mdash; TOTP + backup codes</h4>
+        <p><code class="inline">app.mfa.enabled</code> (default <code class="inline">false</code>) adds per-user TOTP enrollment (RFC 6238, any standard authenticator app), 10 single-use backup codes, and per-tenant enforcement via an internal endpoint. The TOTP secret is encrypted at rest with its own key &mdash; <code class="inline">mfa.secret-encryption-key</code> &mdash; deliberately separate from <code class="inline">jwt.key-encryption-secret</code> so a compromise of one never unlocks the other.</p>
+        <pre><span class="file-tag">application.yaml</span>app:
+  mfa:
+    enabled: true
+
+mfa:
+  secret-encryption-key: ${MFA_SECRET_ENCRYPTION_KEY}</pre>
+        <p><code class="inline">MFA_SECRET_ENCRYPTION_KEY</code> follows the same shape as <code class="inline">JWT_KEY_ENCRYPTION_SECRET</code> &mdash; 32-byte base64, generate with <code class="inline">openssl rand -base64 32</code>. When MFA applies to a user, <code class="inline">POST /api/v1/auth/login</code>'s response shape changes from real tokens to <code class="inline">{"mfaRequired":true,"challengeToken":"...","enrollmentRequired":bool}</code> &mdash; the client then completes the flow against the MFA-specific endpoints below (full reference in chapter 09):</p>
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/enroll</code></td><td>Session, <em>or</em> <code class="inline">?challengeToken=</code></td><td>Returns <code class="inline">otpauthUri</code> + base32 secret. Challenge-token auth only works when that challenge has <code class="inline">enrollmentRequired=true</code> &mdash; it can never be used to silently re-enroll an already-enrolled user</td></tr>
+            <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/enroll/confirm</code></td><td>Session</td><td>Verifies the first code, returns the 10 backup codes once</td></tr>
+            <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/disable</code></td><td>Session</td><td>&nbsp;</td></tr>
+            <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/verify-login</code></td><td>Challenge token</td><td>5 wrong attempts permanently kills the challenge &mdash; forces a fresh <code class="inline">/login</code></td></tr>
+            <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/internal/auth/tenants/{tenantId}/mfa-required</code></td><td><code class="inline">X-Internal-Secret</code></td><td>Turns on per-tenant enforcement for users who haven't enrolled yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="step">
+        <h4>OAuth / social login</h4>
+        <p><code class="inline">app.oauth.enabled</code> (default <code class="inline">false</code>) enables Spring Security OAuth2 Client support for any OIDC provider. The starter ships with a pre-configured example for Google; other providers (GitHub, Microsoft, Apple, or any custom OIDC issuer) follow the same pattern in <code class="inline">spring.security.oauth2.client</code>.</p>
+        <pre><span class="file-tag">application.yaml</span>app:
+  oauth:
+    enabled: true
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${OAUTH_GOOGLE_CLIENT_ID}
+            client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - email
+              - profile
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com</pre>
+        <p>Create your OAuth client credentials in your provider's console (e.g. Google Cloud > APIs & Services > Credentials), then set <code class="inline">OAUTH_GOOGLE_CLIENT_ID</code> and <code class="inline">OAUTH_GOOGLE_CLIENT_SECRET</code> environment variables. The redirect URI is always <code class="inline">http://localhost:8080/login/oauth2/code/{provider}</code> (locally) or your production base URL + the same path.</p>
+        <p>New account flow: visit <code class="inline">/oauth2/authorization/google</code>, authenticate with your provider account. If the email is unknown, you land on <code class="inline">passwordSetupRequired</code> with a time-boxed <code class="inline">setupToken</code> &mdash; set a password via <code class="inline">POST /api/v1/auth/oauth/complete-signup</code> to finish registration. Returning users skip the password-setup step and log in directly. Existing password-account emails auto-link: if you registered with <code class="inline">user@example.com</code> normally, then OAuth-login with a provider account whose email is also <code class="inline">user@example.com</code>, you get one merged account and real tokens immediately. Auto-linking additionally requires the provider to assert <code class="inline">email_verified: true</code> on the OIDC claim &mdash; if the email matches an existing account but the provider has not verified it, the response is <code class="inline">409 {"error": "oauth_email_not_verified"}</code> and the user must log in with their password instead.</p>
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><span class="endpoint-method">GET</span></td><td><code class="inline">/oauth2/authorization/google</code></td><td>none</td><td>Redirect to provider login</td></tr>
+            <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/oauth/complete-signup</code></td><td><code class="inline">setupToken</code> (JSON body)</td><td>Set password for a fresh OAuth account; returns real tokens</td></tr>
+            <tr><td><span class="endpoint-method">GET</span></td><td><code class="inline">/login/oauth2/code/google</code></td><td>none</td><td>Provider callback (automatic, user never visits directly)</td></tr>
+          </tbody>
+        </table>
+        <p>MFA applies the same way as with password login: if the tenant requires MFA (<code class="inline">/internal/auth/tenants/{tenantId}/mfa-required</code>), <code class="inline">complete-signup</code> returns <code class="inline">{"mfaRequired":true,"challengeToken":"...","enrollmentRequired":true}</code> instead of real tokens, and the client must complete the MFA enrollment or verification flow (chapter 06) before it can exchange the challenge token for real tokens.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-db">
+      <div class="chapter-head"><span class="chapter-num">07</span><h2>Database &amp; migrations</h2></div>
+      <p class="chapter-sub">There is nothing for you to run here &mdash; this is the one chapter that's mostly reassurance.</p>
+
+      <p>The starter carries its own Flyway migrations on its classpath and runs them against the same <code class="inline">DataSource</code> your app already configured from <code class="inline">AUTH_DB_*</code>, tracked in a dedicated history table: <code class="inline">flyway_schema_history_auth</code>. This is deliberately not Flyway's default table name, so it can never collide with your own application's migration history &mdash; run your own Flyway or Liquibase however you already do, completely independently.</p>
+
+      <p>The migration runs via <code class="inline">GenAuthFlywayInitializer</code>, an <code class="inline">InitializingBean</code> wired to complete before Hibernate's schema validation (<code class="inline">ddl-auto: validate</code>) ever runs, via <code class="inline">GenAuthJpaDependsOnFlywayConfig</code>. You do not need to declare an ordering dependency yourself &mdash; it's built into the auto-configuration.</p>
+    </section>
+
+    <section class="chapter" id="ch-boot">
+      <div class="chapter-head"><span class="chapter-num">08</span><h2>Boot it and verify</h2></div>
+      <p class="chapter-sub">A minimal smoke test before you build anything on top.</p>
+
+      <pre><span class="file-tag">terminal</span># Postgres + Redis reachable, env vars from chapter 05 exported
+./gradlew bootRun
+
+curl -i http://localhost:8080/actuator/health
+# expect: {"status":"UP"}
+
+curl -i -X POST http://localhost:8080/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"dev@example.com","password":"correct horse battery staple"}'
+# expect: 201
+
+curl -i -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"dev@example.com","password":"correct horse battery staple"}'
+# expect: 200, Set-Cookie headers (cookie delivery mode is the default)</pre>
+
+      <p>If registration or login 401s immediately, jump to chapter 10 &mdash; it's almost always a security-filter-chain conflict, not a config typo.</p>
+    </section>
+
+    <section class="chapter" id="ch-endpoints">
+      <div class="chapter-head"><span class="chapter-num">09</span><h2>Endpoint reference</h2></div>
+      <p class="chapter-sub">Fixed base paths in v1 &mdash; not yet configurable, by design (no real path collision has forced the question yet).</p>
+
+      <table>
+        <caption>Public API</caption>
+        <thead><tr><th>Method</th><th>Path</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/register</code></td><td>Never accepts a <code class="inline">roleId</code></td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/login</code></td><td>Cookie or JSON body, per <code class="inline">TOKEN_DELIVERY_MODE</code></td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/refresh</code></td><td>Rotation + replay detection</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/logout</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/logout-all</code></td><td>Revokes every session</td></tr>
+          <tr><td><span class="endpoint-method">GET</span></td><td><code class="inline">/.well-known/jwks.json</code></td><td>Public key set for verifying tokens elsewhere</td></tr>
+        </tbody>
+      </table>
+
+      <table>
+        <caption>Optional-feature endpoints &mdash; only registered when their flag is on (chapter 06)</caption>
+        <thead><tr><th>Method</th><th>Path</th><th>Flag required</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/magic-link/issue</code></td><td><code class="inline">app.magic-link.enabled</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/magic-link/verify</code></td><td><code class="inline">app.magic-link.enabled</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/super-admin/login</code></td><td><code class="inline">app.super-admin.enabled</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/super-admin/reset-password/issue</code></td><td><code class="inline">app.super-admin.enabled</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/super-admin/reset-password/verify</code></td><td><code class="inline">app.super-admin.enabled</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/enroll</code></td><td><code class="inline">app.mfa.enabled</code></td><td>Session <em>or</em> <code class="inline">?challengeToken=</code> &mdash; see chapter 06</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/enroll/confirm</code></td><td><code class="inline">app.mfa.enabled</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/disable</code></td><td><code class="inline">app.mfa.enabled</code></td><td>&nbsp;</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/api/v1/auth/mfa/verify-login</code></td><td><code class="inline">app.mfa.enabled</code></td><td>Challenge-token authenticated, not JWT</td></tr>
+        </tbody>
+      </table>
+
+      <table>
+        <caption>Internal API &mdash; requires <code class="inline">X-Internal-Secret</code> header</caption>
+        <thead><tr><th>Method</th><th>Path</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/internal/auth/users</code></td><td>Admin provisioning &mdash; only place a <code class="inline">roleId</code> can be set</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/internal/auth/keys/rotate</code></td><td>New RSA key, promoted active immediately (local mode only)</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/internal/auth/keys/{kid}/retire</code></td><td>404 unknown/YAML key, 409 if it's the active key</td></tr>
+          <tr><td><span class="endpoint-method">GET</span></td><td><code class="inline">/internal/auth/keys</code></td><td>Lists all kids and which is active</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/internal/auth/impersonation-token</code></td><td>Requires <code class="inline">app.super-admin.enabled</code>; issues a time-boxed impersonation JWT</td></tr>
+          <tr><td><span class="endpoint-method">POST</span></td><td><code class="inline">/internal/auth/tenants/{tenantId}/mfa-required</code></td><td>Requires <code class="inline">app.mfa.enabled</code>; turns on per-tenant MFA enforcement</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="chapter" id="ch-security">
+      <div class="chapter-head"><span class="chapter-num">10</span><h2>If you have your own SecurityFilterChain</h2></div>
+      <p class="chapter-sub">The single most likely integration snag. Read this before you file a bug.</p>
+
+      <p>The starter registers its own <code class="inline">SecurityFilterChain</code> bean (inside <code class="inline">SecurityConfig</code>) and forces itself to be configured before Spring Boot's own default via <code class="inline">@AutoConfigureBefore(ServletWebSecurityAutoConfiguration.class)</code> on <code class="inline">GenAuthAutoConfiguration</code>. Two consequences:</p>
+
+      <div class="step">
+        <h4>You don't need your own SecurityFilterChain just to use the starter</h4>
+        <p>Boot it as-is and the starter's filter chain handles everything under <code class="inline">/api/v1/auth/**</code>, <code class="inline">/internal/**</code>, and <code class="inline">/.well-known/jwks.json</code>.</p>
+      </div>
+
+      <div class="step">
+        <h4>If your own app defines a SecurityFilterChain bean too</h4>
+        <p>Spring only keeps one <code class="inline">SecurityFilterChain</code> per matcher scope. Two unscoped chains in the same context is a startup error, not a silent merge. Scope yours with a narrower <code class="inline">securityMatcher(...)</code>, or give it explicit <code class="inline">@Order</code> relative to the starter's, so your routes and the starter's auth routes are unambiguous about which chain owns which path.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-gotchas">
+      <div class="chapter-head"><span class="chapter-num">11</span><h2>Field notes &amp; gotchas</h2></div>
+      <p class="chapter-sub">Three things that cost real debugging time during this project's own verification passes &mdash; all three needed a live boot to surface, not a unit test.</p>
+
+      <div class="callout warn">
+        <span class="tag">allow-bean-definition-overriding</span>
+        <p>If your own app also defines beans the starter's <code class="inline">@ComponentScan</code> discovers (unlikely, since everything lives under <code class="inline">com.example.authsvc</code>, but possible for shared library beans), set <code class="inline">spring.main.allow-bean-definition-overriding: true</code>. Without it you'll see Spring's normal duplicate-bean-definition error, which is at least honest about what's wrong.</p>
+      </div>
+
+      <div class="callout warn">
+        <span class="tag">JVM timezone</span>
+        <p>If your JVM's default timezone resolves to a legacy IANA alias your Postgres image's tzdata doesn't recognize (e.g. <code class="inline">Asia/Calcutta</code> instead of <code class="inline">Asia/Kolkata</code>), every DB connection fails with <code class="inline">invalid value for parameter "TimeZone"</code>. Fix: <code class="inline">JAVA_TOOL_OPTIONS=-Duser.timezone=UTC</code>. It must be this exact env var &mdash; a <code class="inline">-D</code> flag passed to <code class="inline">gradlew</code> on the command line does not propagate into <code class="inline">bootRun</code>'s forked JVM.</p>
+      </div>
+
+      <div class="callout warn">
+        <span class="tag">Local Postgres/Redis port collisions</span>
+        <p>If your machine already runs a native Postgres or Redis on the default ports, a container published on <code class="inline">5432</code>/<code class="inline">6379</code> can silently lose to the native install when the JVM connects from the host side &mdash; you'll get a confusing "password authentication failed" instead of a clean connection-refused. Publish your dev containers on non-default host ports (e.g. <code class="inline">5433</code>/<code class="inline">6380</code>) and point <code class="inline">AUTH_DB_URL</code>/<code class="inline">spring.data.redis.port</code> at those instead.</p>
+      </div>
+
+      <div class="callout">
+        <span class="tag">Upgrading an existing install to this version</span>
+        <p><code class="inline">JWT_KEY_ENCRYPTION_SECRET</code> is checked unconditionally at boot on this version, even for installs that will only ever use YAML-sourced keys or <code class="inline">kms</code> signing mode and never call the rotation endpoints. Set it before you deploy, not after the first crash loop.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-local">
+      <div class="chapter-head"><span class="chapter-num">12</span><h2>No package registry yet? Use mavenLocal</h2></div>
+      <p class="chapter-sub">The verified path today, until a real GitHub org is filled into the publish config.</p>
+
+      <div class="step">
+        <h4>Publish the starter to your local Maven cache</h4>
+        <p>From this repository:</p>
+        <pre><span class="file-tag">terminal — Gen_AUTH repo</span>./gradlew.bat :gen-auth-starter:publishToMavenLocal</pre>
+      </div>
+
+      <div class="step">
+        <h4>Point your consuming project at mavenLocal instead of GitHub Packages</h4>
+        <pre><span class="file-tag">build.gradle</span>repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = "https://build.shibboleth.net/nexus/content/repositories/releases/" }
+}
+
+dependencies {
+    implementation 'com.example:gen-auth-starter:0.0.1-SNAPSHOT'
+    implementation 'org.springframework.boot:spring-boot-starter'
+}</pre>
+        <p>Everything from chapter 03 onward &mdash; keys, config, env vars, boot &mdash; is identical either way. Only where the jar comes from changes.</p>
+      </div>
+    </section>
+
+    <footer class="colophon">
+      Updated after the OAuth slice merged to <code class="inline">main</code> (2026-08-25) &mdash; every item on the original punch list is now built. Source of truth for anything not covered here: <code class="inline">docs/superpowers/specs/2026-07-16-starter-library-design.md</code> (core module), <code class="inline">docs/superpowers/specs/2026-07-16-restore-deferred-features-design.md</code> (email/magic-link, super-admin, messaging), <code class="inline">docs/superpowers/specs/2026-07-15-mfa-design.md</code> (MFA), <code class="inline">docs/superpowers/specs/2026-08-25-oauth-design.md</code> (OAuth), and the starter's own README in the Gen_AUTH repository.
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function(){
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 120;
+      var current = sections[0];
+      for (var i = 0; i < sections.length; i++){
+        if (sections[i] && sections[i].offsetTop <= pos) current = sections[i];
+      }
+      links.forEach(function(a){ a.classList.remove('active'); });
+      var idx = sections.indexOf(current);
+      if (idx > -1) links[idx].classList.add('active');
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>

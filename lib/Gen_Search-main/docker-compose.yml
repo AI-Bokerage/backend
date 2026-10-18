@@ -1,0 +1,34 @@
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: gensearch
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5442:5432"   # next free after Gen_SLA (5440), Gen_FMM (5441) — verified against every sibling
+    volumes:
+      - gensearch_postgres_data:/var/lib/postgresql/data
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6386:6379"   # next free after Gen_SLA (6384), Gen_FMM (6385)
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5675:5672"    # AMQP — next free after Gen_AUTH (5673), Gen_SLA (5674)
+      - "15675:15672"  # management UI — http://localhost:15675 (guest/guest)
+
+  opensearch:
+    image: opensearchproject/opensearch:2
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"   # local dev only — never disable security in a real deployment
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9202:9200"   # REST API — first Gen_MS repo to need OpenSearch, no collision to avoid yet
+
+volumes:
+  gensearch_postgres_data:

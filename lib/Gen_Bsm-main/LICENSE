@@ -1,0 +1,20 @@
+Copyright (c) 2026 [OWNER NAME/ENTITY NOT YET DECIDED]
+
+All rights reserved.
+
+PLACEHOLDER — LICENSE NOT YET FINALIZED.
+
+This file is a placeholder inserted during Phase 7 (Library Release
+Readiness) because software cannot be responsibly published, even to a
+private Maven repository consumed by other teams, without an explicit
+license grant. Ownership of this codebase (company-proprietary, open-source,
+dual-licensed, etc.) had not been decided at the time this placeholder was
+written.
+
+Before `bsm-core` / `bsm-spring-boot-starter` / `bsm-demo` are published to
+any repository outside this monorepo's immediate control, this file MUST be
+replaced with an actual license text (e.g. Apache-2.0, MIT, or a proprietary
+company license) chosen by whoever owns the legal decision for this
+codebase. Until that happens, treat this project as "all rights reserved,
+internal use only" — do not redistribute the published artifacts outside
+the organization that produced them.

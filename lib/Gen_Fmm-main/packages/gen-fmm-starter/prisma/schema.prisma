@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Module {
+  code         String   @id @db.VarChar(32)
+  name         String   @db.VarChar(120)
+  description  String?
+  category     String?  @db.VarChar(60)
+  isActive     Boolean  @default(true) @map("is_active")
+  displayOrder Int      @default(0) @map("display_order")
+  iconKey      String?  @map("icon_key") @db.VarChar(60)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  planModules PlanModule[]
+  flags       FeatureFlag[]
+
+  @@map("module")
+}
+
+model PlanModule {
+  planCode    String   @map("plan_code") @db.VarChar(60)
+  moduleCode  String   @map("module_code") @db.VarChar(32)
+  entitlement Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  module Module @relation(fields: [moduleCode], references: [code], onDelete: Cascade)
+
+  @@id([planCode, moduleCode])
+  @@index([moduleCode])
+  @@map("plan_module")
+}
+
+model FeatureFlag {
+  key               String   @id @db.VarChar(128)
+  moduleCode        String?  @map("module_code") @db.VarChar(32)
+  defaultEnabled    Boolean  @default(false) @map("default_enabled")
+  isGradualRollout  Boolean  @default(false) @map("is_gradual_rollout")
+  rolloutPercentage Int      @default(0) @map("rollout_percentage") @db.SmallInt
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  module    Module?             @relation(fields: [moduleCode], references: [code], onDelete: SetNull)
+  overrides TenantFeatureFlag[]
+
+  @@index([moduleCode])
+  @@map("feature_flag")
+}
+
+model TenantFeatureFlag {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  flagKey   String    @map("flag_key") @db.VarChar(128)
+  enabled   Boolean
+  config    Json      @default("{}")
+  reason    String?   @db.VarChar(300)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.VarChar(120)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  flag FeatureFlag @relation(fields: [flagKey], references: [key], onDelete: Cascade)
+
+  @@id([tenantId, flagKey])
+  @@map("tenant_feature_flag")
+}
+
+model FeatureUsageEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  flagKey    String   @map("flag_key") @db.VarChar(128)
+  enabled    Boolean
+  reason     String   @db.VarChar(30)
+  planCode   String?  @map("plan_code") @db.VarChar(60)
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  @@index([tenantId, flagKey, occurredAt(sort: Desc)])
+  @@map("feature_usage_event")
+}

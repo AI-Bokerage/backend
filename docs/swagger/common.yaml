@@ -1,0 +1,19 @@
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          description: What went wrong, in plain words
+          example: 'name: Required'
+        code:
+          type: string
+          description: 'Only on AI errors: AI_DISABLED, AI_LIMIT_REACHED, AI_UNREACHABLE…'
+        requestId:
+          type: string
+          description: Quote this when reporting a problem
+          example: 7e8aece0-2383-4b36-91a5-148db2b2bef2

@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../__generated__/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SignupState {
+  STARTED
+  EMAIL_VERIFIED
+  PLAN_SELECTED
+  PAYMENT_PENDING
+  PAYMENT_SUCCEEDED
+  PROVISIONING
+  ACTIVE
+  PROVISION_FAILED
+  ABANDONED
+}
+
+model SignupSession {
+  id                         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                      String      @db.VarChar(255)
+  companyName                String?     @map("company_name") @db.VarChar(255)
+  fullName                   String?     @map("full_name") @db.VarChar(255)
+  phone                      String?     @db.VarChar(32)
+  source                     String?     @db.VarChar(64)
+  referralCode               String?     @map("referral_code") @db.VarChar(64)
+  utmSource                  String?     @map("utm_source") @db.VarChar(128)
+  utmMedium                  String?     @map("utm_medium") @db.VarChar(128)
+  utmCampaign                String?     @map("utm_campaign") @db.VarChar(128)
+  desiredSubdomain           String      @map("desired_subdomain") @db.VarChar(63)
+  state                      SignupState @default(STARTED)
+  emailVerificationTokenHash String?     @map("email_verification_token_hash") @db.VarChar(255)
+  emailVerifiedAt            DateTime?   @map("email_verified_at") @db.Timestamptz(6)
+  resumeTokenHash            String?     @map("resume_token_hash") @db.VarChar(255)
+  authUserId                 String      @map("auth_user_id") @db.Uuid
+  selectedPlanCode           String?     @map("selected_plan_code") @db.VarChar(64)
+  selectedBillingCycle       String?     @map("selected_billing_cycle") @db.VarChar(16)
+  paymentProvider            String?     @map("payment_provider") @db.VarChar(16)
+  checkoutSessionId          String?     @map("checkout_session_id") @db.VarChar(255)
+  paymentCustomerId          String?     @map("payment_customer_id") @db.VarChar(255)
+  provisioningJobId          String?     @map("provisioning_job_id") @db.Uuid
+  provisionedTenantId        String?     @map("provisioned_tenant_id") @db.Uuid
+  lastProvisioningError      String?     @map("last_provisioning_error") @db.Text
+  expiresAt                  DateTime    @map("expires_at") @db.Timestamptz(6)
+  createdAt                  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([emailVerificationTokenHash])
+  @@index([resumeTokenHash])
+  @@index([checkoutSessionId])
+  @@map("signup_session")
+}

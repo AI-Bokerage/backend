@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: genauth
+    ports:
+      - '5433:5432'
+    volumes:
+      - genauth_java_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - '6380:6379'
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - '1026:1025'   # SMTP
+      - '8026:8025'   # Web UI — open http://localhost:8026 to see captured mail
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - '5673:5672'   # AMQP
+      - '15673:15672'  # Management UI — open http://localhost:15673 (guest/guest)
+
+volumes:
+  genauth_java_postgres_data:

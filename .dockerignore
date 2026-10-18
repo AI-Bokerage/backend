@@ -1,0 +1,19 @@
+node_modules
+dist
+coverage
+.git
+.env
+
+# Java build output — never ship the host's local build into the image;
+# modules/auth's Dockerfile runs `gradle bootJar` fresh inside the build stage.
+**/.gradle
+**/build
+
+# gen-sup-starter/gen-usg-starter's own build output IS needed — consumed as
+# `file:` dependencies (package.json main/exports point at dist/index.js),
+# not built inside this app's own Dockerfile. Re-included despite the bare
+# `dist` pattern above, which would otherwise match these nested paths too.
+!lib/Gen_Sup-main/packages/gen-sup-starter/dist
+!lib/Gen_Usg-main/packages/gen-usg-starter/dist
+
+storage/

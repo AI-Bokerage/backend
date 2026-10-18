@@ -1,0 +1,37 @@
+# Illustrative only. The Gradle publishing configuration in the root build.gradle.kts (and each
+# publishable module's own build.gradle.kts) is the source of truth for how this project
+# publishes — this workflow is one example of wiring that up, not a requirement of the phase that
+# added it. Adapt the trigger, runner, and secrets wiring to whatever CI/CD system this org
+# actually runs; do not treat this specific YAML as load-bearing.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # Release criteria: a clean build, a clean (warnings-fail) Javadoc pass for both
+      # publishable modules, then publish. The javadoc task is also wired as a dependency of
+      # `publish` in the root build.gradle.kts, so this step is somewhat redundant with what a
+      # plain `./gradlew publish` already enforces locally — kept here anyway so a failure at
+      # this stage is visible as its own CI step, not buried inside the publish step's log.
+      - name: Build and generate Javadoc
+        run: ./gradlew build javadoc
+
+      - name: Publish
+        env:
+          AUDIT_JAVA_PUBLISH_URL: ${{ secrets.AUDIT_JAVA_PUBLISH_URL }}
+          AUDIT_JAVA_PUBLISH_USERNAME: ${{ secrets.AUDIT_JAVA_PUBLISH_USERNAME }}
+          AUDIT_JAVA_PUBLISH_TOKEN: ${{ secrets.AUDIT_JAVA_PUBLISH_TOKEN }}
+        run: ./gradlew publish

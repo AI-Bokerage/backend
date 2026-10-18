@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+**/build/
+**/bin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Java
+*.class
+hs_err_pid*
+replay_pid*
+
+# Archives
+*.zip
+*.tar
+*.tar.gz

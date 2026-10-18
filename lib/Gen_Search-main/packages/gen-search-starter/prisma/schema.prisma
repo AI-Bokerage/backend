@@ -1,0 +1,38 @@
+// packages/gen-search-starter/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../__generated__/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// `tsv` is Unsupported("tsvector") — Prisma Client can't read/write it directly.
+// PgFtsAdapter reaches it exclusively through $queryRaw/$executeRaw; a
+// BEFORE INSERT OR UPDATE trigger (see the hand-authored migration.sql, this
+// isn't something `prisma migrate dev` can generate for an Unsupported type)
+// keeps it in sync with title/snippet/content on every write, including
+// writes made through Prisma Client's normal `search_index.deleteMany` etc.
+// for non-FTS operations.
+model SearchIndex {
+  id         String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String                    @map("tenant_id") @db.Uuid
+  entityType String                    @map("entity_type") @db.VarChar(64)
+  entityId   String                    @map("entity_id") @db.Uuid
+  title      String                    @db.VarChar(512)
+  snippet    String?                   @db.Text
+  content    String?                   @db.Text
+  ownerId    String?                   @map("owner_id") @db.Uuid
+  metadata   Json                      @default("{}") @db.JsonB
+  tsv        Unsupported("tsvector")?
+  createdAt  DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, entityType, entityId])
+  @@index([tenantId])
+  @@index([tenantId, entityType])
+  @@index([ownerId])
+  @@map("search_index")
+}

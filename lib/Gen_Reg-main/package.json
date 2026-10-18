@@ -1,0 +1,12 @@
+{
+  "name": "gen-reg-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspace=@gen-ms/gen-reg-starter",
+    "build": "npm run build --workspace=@gen-ms/gen-reg-starter && npm run build --workspace=@gen-ms/gen-reg-demo",
+    "dev": "npm run dev --workspace=@gen-ms/gen-reg-demo"
+  }
+}

@@ -1,0 +1,49 @@
+# gen-tnt-demo/src/main/resources/application.yaml
+server:
+  port: 8201
+
+spring:
+  application:
+    name: gen-tnt-demo
+
+  datasource:
+    url: ${TNT_DB_URL}
+    username: ${TNT_DB_USERNAME}
+    password: ${TNT_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: ${TNT_REDIS_HOST:localhost}
+      port: ${TNT_REDIS_PORT:6381}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+gentnt:
+  internal-secret: ${INTERNAL_SERVICE_SECRET}
+  provisioning:
+    max-retries: 3
+    timeout-minutes: 10
+    retry-scheduler-interval-ms: 120000
+    timeout-scheduler-interval-ms: 60000
+    steps:
+      - name: SCHEMA_BOOTSTRAP
+        url: http://localhost:9001/sync-step
+        mode: SYNC
+        retryable: true
+      - name: AUTH_BOOTSTRAP
+        url: http://localhost:9001/async-step
+        mode: ASYNC
+        retryable: true

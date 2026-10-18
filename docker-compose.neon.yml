@@ -1,0 +1,52 @@
+# Run the stack against hosted Postgres on Neon instead of the local
+# Postgres containers. Redis and Mailhog stay local in Docker.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.neon.yml up --build -d
+#
+# Needs in .env (git-ignored — never commit it):
+#   NEON_POOLER_HOST   e.g. ep-xxxx-pooler.<region>.aws.neon.tech  (the Node app)
+#   NEON_DIRECT_HOST   same without "-pooler"                       (Java services, migrations)
+#   NEON_USER, NEON_PASSWORD
+# and three databases on that Neon server: crm, auth_db, tenant_db.
+# Setup steps: docs/manual-testing.md, "Using Neon instead of local Postgres".
+
+services:
+  app:
+    environment:
+      DATABASE_URL: 'postgresql://${NEON_USER}:${NEON_PASSWORD}@${NEON_POOLER_HOST}/crm?sslmode=require&pgbouncer=true&connect_timeout=15'
+    depends_on: !override
+      modauth:
+        condition: service_started
+      tenant:
+        condition: service_started
+
+  # Flyway and the JDBC pools need session state, so the Java services use
+  # Neon's direct host, not the pooler.
+  modauth:
+    environment:
+      AUTH_DB_URL: 'jdbc:postgresql://${NEON_DIRECT_HOST}/auth_db?sslmode=require'
+      AUTH_DB_USERNAME: '${NEON_USER}'
+      AUTH_DB_PASSWORD: '${NEON_PASSWORD}'
+    depends_on: !override
+      auth-redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+
+  tenant:
+    environment:
+      TNT_DB_URL: 'jdbc:postgresql://${NEON_DIRECT_HOST}/tenant_db?sslmode=require'
+      TNT_DB_USERNAME: '${NEON_USER}'
+      TNT_DB_PASSWORD: '${NEON_PASSWORD}'
+    depends_on: !override
+      tenant-redis:
+        condition: service_started
+
+  # The local Postgres containers aren't needed; only start them with
+  # --profile local-postgres.
+  postgres:
+    profiles: [local-postgres]
+  auth-postgres:
+    profiles: [local-postgres]
+  tenant-postgres:
+    profiles: [local-postgres]

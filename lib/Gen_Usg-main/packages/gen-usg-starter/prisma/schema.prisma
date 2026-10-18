@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+  // Same fix gen-sup-starter's own schema.prisma already applies, for the
+  // same reason: without a package-local output path, `prisma generate`
+  // writes to the default node_modules/@prisma/client location, which a
+  // pnpm consumer with its own, differently-schema'd @prisma/client
+  // dependency (this app's own prisma/schema.prisma) can collide with —
+  // whichever package's postinstall generates last silently overwrites the
+  // other's generated client. Package-scoped output avoids that entirely.
+  output = "../__generated__/prisma"
+  // Prisma 5.x's musl+OpenSSL auto-detection guessed openssl-1.1.x for a
+  // node:20-alpine (musl, OpenSSL 3.x since Alpine 3.17+) runtime — wrong
+  // engine binary, confirmed by an actual "libssl.so.1.1: No such file or
+  // directory" crash at runtime. Explicit targets skip that guess entirely.
+  // Prisma 5.x's runtime openssl-version detection doesn't recognize
+  // Alpine 3.23's OpenSSL 3.5.6 (a Prisma 5.22-era / 2024 limitation against
+  // a newer-than-anticipated OpenSSL) and falls back to guessing 1.1.x even
+  // when 3.0.x is pinned explicitly — confirmed by an actual runtime crash
+  // ("could not locate the Query Engine for runtime linux-musl-arm64-
+  // openssl-1.1.x") on every one of several explicit-target combinations
+  // tried. Bumping to Prisma 6 (below, in dependencies) fixes the detection
+  // itself — proven compatible against this exact base image already, since
+  // this repo's own main app already runs Prisma 6.19.3 on it successfully.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RollupPeriod {
+  daily
+  monthly
+
+  @@map("rollup_period")
+}
+
+enum GraceOverageStatus {
+  OPEN
+  CLOSED
+
+  @@map("grace_overage_status")
+}
+
+model UsageSnapshot {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  snapshotAt DateTime     @map("snapshot_at") @db.Timestamptz(6)
+  period     RollupPeriod
+  metrics    Json
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId, snapshotAt(sort: Desc)])
+  @@index([tenantId, period, snapshotAt(sort: Desc)])
+  @@map("usage_snapshot")
+}
+
+model UsageGraceOverage {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String             @map("tenant_id") @db.Uuid
+  metric         String             @db.VarChar(120)
+  graceStartedAt DateTime           @map("grace_started_at") @db.Timestamptz(6)
+  graceExpiresAt DateTime           @map("grace_expires_at") @db.Timestamptz(6)
+  overageCount   Int                @default(0) @map("overage_count")
+  status         GraceOverageStatus @default(OPEN)
+  billedAt       DateTime?          @map("billed_at") @db.Timestamptz(6)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, metric, status])
+  @@index([status, graceExpiresAt])
+  @@map("usage_grace_overage")
+}
+
+model UsageReconciliationLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  metric       String   @db.VarChar(120)
+  counterValue BigInt   @map("counter_value")
+  dbValue      BigInt   @map("db_value")
+  driftPct     Decimal  @map("drift_pct") @db.Decimal(6, 2)
+  corrected    Boolean
+  runAt        DateTime @default(now()) @map("run_at") @db.Timestamptz(6)
+
+  @@index([tenantId, runAt(sort: Desc)])
+  @@map("usage_reconciliation_log")
+}
+
+model UsageIdempotencyLedger {
+  eventId     String   @id @map("event_id") @db.VarChar(128)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+
+  @@map("usage_idempotency_ledger")
+}

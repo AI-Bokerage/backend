@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+**/__generated__/
+package-lock.json
+pre-context/
+.worktrees/

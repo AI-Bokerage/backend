@@ -1,0 +1,24 @@
+// gen-tnt-demo/build.gradle
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+description = 'gen-tnt-demo'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencies {
+    implementation project(':gen-tnt-starter')
+    // gen-tnt-starter declares its Spring Boot deps as `implementation`, which
+    // java-library does not expose transitively — this module needs
+    // spring-boot-starter directly on its own compile classpath for
+    // @SpringBootApplication (same reason gen-auth-demo needs it).
+    implementation 'org.springframework.boot:spring-boot-starter'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+}

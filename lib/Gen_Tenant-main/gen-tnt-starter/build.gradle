@@ -1,0 +1,107 @@
+// gen-tnt-starter/build.gradle
+plugins {
+    id 'java-library'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'maven-publish'
+}
+
+description = 'gen-tnt-starter'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withSourcesJar()
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.0.6"
+        mavenBom "org.testcontainers:testcontainers-bom:1.21.4"
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // Spring Boot 4 also moved RestClient.Builder's autoconfiguration out of
+    // spring-boot-starter-web into its own module — same pattern as Flyway
+    // below. Without this, any @Component constructor-injecting
+    // RestClient.Builder fails to find a bean for it.
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'org.postgresql:postgresql'
+    // Spring Boot 4 moved FlywayAutoConfiguration out of spring-boot-autoconfigure
+    // into its own module — flyway-core alone no longer gets Flyway auto-run on
+    // startup, this starter is what actually wires it in.
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
+
+    // Swagger / OpenAPI — pinned to the same version as gen-auth-starter for
+    // consistency across Gen_MS services.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.wiremock:wiremock-standalone:3.9.2'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // Spring MVC resolves @PathVariable/@RequestParam names via reflection at
+    // runtime; without -parameters (normally added by the Spring Boot Gradle
+    // plugin, which this java-library module doesn't apply) any unnamed
+    // @PathVariable throws IllegalArgumentException the first time it's
+    // actually dispatched through MockMvc/a real request.
+    options.compilerArgs << '-parameters'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    // JVM's default timezone can resolve to a legacy IANA alias (e.g.
+    // Asia/Calcutta instead of Asia/Kolkata) that the Testcontainers Postgres
+    // image's tzdata doesn't recognize, failing every DB connection with
+    // 'invalid value for parameter "TimeZone"'. Forcing UTC here means every
+    // contributor gets a working `./gradlew test` regardless of locale,
+    // instead of needing to remember a JAVA_TOOL_OPTIONS env var.
+    jvmArgs '-Duser.timezone=UTC'
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'com.example'
+            artifactId = 'gen-tnt-starter'
+            version = project.version
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/YOUR_GITHUB_ORG/Gen_TNT")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}

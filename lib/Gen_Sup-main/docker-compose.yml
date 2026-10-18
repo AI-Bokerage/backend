@@ -1,0 +1,25 @@
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: gensup
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5443:5432"   # next free after Gen_SEARCH (5442) — verified against every sibling
+    volumes:
+      - gensup_postgres_data:/var/lib/postgresql/data
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6387:6379"   # next free after Gen_SEARCH (6386)
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5676:5672"    # AMQP — next free after Gen_SEARCH (5675)
+      - "15676:15672"  # management UI — http://localhost:15676 (guest/guest)
+
+volumes:
+  gensup_postgres_data:

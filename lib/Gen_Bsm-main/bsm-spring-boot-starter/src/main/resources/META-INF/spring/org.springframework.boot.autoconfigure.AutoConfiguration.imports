@@ -1,0 +1,10 @@
+com.company.bsmsvc.starter.config.BsmPolicyAutoConfiguration
+com.company.bsmsvc.starter.config.BsmSupportAutoConfiguration
+com.company.bsmsvc.starter.config.TenantBillingProfileAutoConfiguration
+com.company.bsmsvc.starter.config.PaymentAutoConfiguration
+com.company.bsmsvc.starter.config.InvoiceAutoConfiguration
+com.company.bsmsvc.starter.config.SubscriptionAutoConfiguration
+com.company.bsmsvc.starter.config.InvoiceRenewalAutoConfiguration
+com.company.bsmsvc.starter.config.DunningAutoConfiguration
+com.company.bsmsvc.starter.config.TenantOnboardingAutoConfiguration
+com.company.bsmsvc.starter.config.validation.BsmPortAvailabilityValidatorAutoConfiguration

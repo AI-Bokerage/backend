@@ -1,0 +1,16 @@
+{
+  "name": "@gen-ms/gen-fmm-demo",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc --outDir dist src/index.ts --module NodeNext --moduleResolution NodeNext --target ES2022 --esModuleInterop --skipLibCheck",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@gen-ms/gen-fmm-starter": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

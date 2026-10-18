@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BrandingTheme {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum DomainStatus {
+  PENDING
+  VERIFIED
+  ACTIVE
+  DETACHED
+}
+
+enum DomainVerificationMethod {
+  TXT
+  CNAME
+}
+
+model TenantBranding {
+  tenantId       String        @id @db.Uuid
+  displayName    String        @db.VarChar(120)
+  tagline        String?       @db.VarChar(200)
+  logoUrl        String?       @db.VarChar(1024)
+  logoDarkUrl    String?       @db.VarChar(1024)
+  faviconUrl     String?       @db.VarChar(1024)
+  primaryColor   String?       @db.VarChar(32)
+  secondaryColor String?       @db.VarChar(32)
+  accentColor    String?       @db.VarChar(32)
+  fontFamily     String?       @db.VarChar(120)
+  theme          BrandingTheme @default(SYSTEM)
+  rawMeta        Json?
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@map("tenant_branding")
+}
+
+model TenantDomain {
+  id                 String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String                   @db.Uuid
+  domain             String                   @db.VarChar(253)
+  verificationToken  String                   @db.VarChar(64)
+  status             DomainStatus             @default(PENDING)
+  verificationMethod DomainVerificationMethod
+  verifiedAt         DateTime?                @db.Timestamptz(6)
+  lastCheckedAt      DateTime?                @db.Timestamptz(6)
+  isPrimary          Boolean                  @default(false)
+  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
+
+  @@unique([domain])
+  @@index([tenantId])
+  @@map("tenant_domain")
+}

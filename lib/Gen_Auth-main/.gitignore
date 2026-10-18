@@ -1,0 +1,59 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### RSA keys — NEVER commit private keys ###
+gen-auth-starter/src/main/resources/keys/private.pem
+gen-auth-starter/src/main/resources/keys/public.pem
+gen-auth-demo/src/main/resources/keys/private.pem
+gen-auth-demo/src/main/resources/keys/public.pem
+src/main/resources/keys/private.pem
+src/main/resources/keys/public.pem
+
+### Local override configs — contain real credentials ###
+gen-auth-starter/src/main/resources/application-local.yml
+gen-auth-starter/src/main/resources/application-local.yaml
+
+### Env files — never commit real secrets ###
+.env
+.env.local
+*.log
+
+### Gen_AUTH-specific — not part of the forked auth-svc source ###
+.worktrees/
+.superpowers/sdd/
+pre-context/

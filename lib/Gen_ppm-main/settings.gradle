@@ -1,0 +1,6 @@
+rootProject.name = 'ppm-platform'
+
+include 'ppm-core'
+include 'ppm-svc'
+include 'ppm-demo'
+include 'ppm-spring-boot-starter'

@@ -1,0 +1,61 @@
+paths:
+  /session/login:
+    post:
+      summary: Sign in (Tenant Admin, Team Lead, Broker, Assistant)
+      description: >
+        **Do this first.** Click **Try it out**, keep or change the email and
+        password, then **Execute**. A 200 means you are signed in: this browser
+        now sends your sign-in with every other request on this page, so you
+        can try any endpoint without pasting anything. Sign in again with
+        another account to switch who you are.
+
+
+        If the answer says `requiresTermsAcceptance: true`, send the same
+        request again with `"acceptTerms": true`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                acceptTerms: { type: boolean, description: 'Agree to updated terms if asked' }
+      responses:
+        '200':
+          description: Signed in — your role and which dashboard you would land on
+          content:
+            application/json:
+              example:
+                {
+                  userId: 6e595123-648f-447e-a1da-c14c97b3af9b,
+                  email: leah@acme.test,
+                  role: TEAM_LEAD,
+                  dashboard: team_dashboard,
+                  requiresTermsAcceptance: false,
+                }
+        '401': { description: Email or password is incorrect }
+        '403': { description: Account deactivated, or the brokerage is suspended }
+        '429': { description: Too many failed tries — sign-in is paused for 15 minutes }
+
+  /session/super-admin-login:
+    post:
+      summary: Sign in as the Super Admin (for the Platform sections)
+      description: >
+        Same as above, for the platform owner. After a 200 the Platform
+        sections (brokerages, AI cost, activity log) work on this page.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Signed in as Super Admin }
+        '401': { description: Email or password is incorrect }

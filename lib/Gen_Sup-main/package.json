@@ -1,0 +1,10 @@
+{
+  "name": "gen-sup-workspace",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm test --workspace=@gen-ms/gen-sup-starter",
+    "build": "npm run build --workspace=@gen-ms/gen-sup-starter && npm run build --workspace=@gen-ms/gen-sup-demo",
+    "dev": "npm run dev --workspace=@gen-ms/gen-sup-demo"
+  }
+}

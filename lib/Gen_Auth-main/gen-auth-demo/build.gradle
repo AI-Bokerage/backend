@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+description = 'gen-auth-demo'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencies {
+    implementation project(':gen-auth-starter')
+    // Needed on this module's own compile classpath for @SpringApplication/
+    // @SpringBootApplication — gen-auth-starter declares its Spring Boot
+    // dependencies as `implementation`, which java-library does not expose
+    // transitively to a consumer's compile classpath (only `api` deps are).
+    implementation 'org.springframework.boot:spring-boot-starter'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+}
+
+tasks.named('bootRun') {
+    def envFile = file("${projectDir}/.env")
+    if (envFile.exists()) {
+        envFile.readLines().each { line ->
+            def trimmed = line.trim()
+            if (trimmed && !trimmed.startsWith('#')) {
+                def idx = trimmed.indexOf('=')
+                if (idx > 0) {
+                    environment(trimmed.substring(0, idx).trim(), trimmed.substring(idx + 1).trim())
+                }
+            }
+        }
+    }
+}

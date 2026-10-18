@@ -1,0 +1,25 @@
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: gensla
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5440:5432"   # next free after Gen_FMM (5441) — verified against every sibling
+    volumes:
+      - gensla_postgres_data:/var/lib/postgresql/data
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6384:6379"   # next free after Gen_FMM (6385)
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5674:5672"    # AMQP — only Gen_AUTH uses AMQP today (5673), next free
+      - "15674:15672"  # management UI — http://localhost:15674 (guest/guest)
+
+volumes:
+  gensla_postgres_data:

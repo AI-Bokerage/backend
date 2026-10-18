@@ -1,0 +1,65 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+description = 'modules-auth'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+
+    // gen-auth-starter transitively depends on spring-security-saml2-service-provider,
+    // which pulls OpenSAML from here — same repo its own root build.gradle adds for itself.
+    maven {
+        url = "https://build.shibboleth.net/nexus/content/repositories/releases/"
+    }
+}
+
+dependencies {
+    // The real login/session/lockout/JWT/magic-link machinery — reused as-is,
+    // not reimplemented. This module only adds what it doesn't cover: role
+    // hierarchy, terms-of-service gating, and the invitation lifecycle.
+    implementation 'com.example:gen-auth-starter'
+
+    // gen-auth-starter is a `java-library` and only exposes `implementation`
+    // deps to a consumer's runtime classpath, not its compile classpath — so
+    // anything this module's own source directly references (annotations,
+    // types) must be re-declared here. See gen-auth-demo/build.gradle for the
+    // same pattern.
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    // Same versions as lib/Gen_Auth-main/gen-auth-starter's own build.gradle,
+    // for the same manual-lifecycle Testcontainers convention (see
+    // AuthOutboxRelayJobIntegrationTest) — TeamAndPeopleIntegrationTest reuses it.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
+    testImplementation 'org.testcontainers:postgresql:1.21.3'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
