@@ -32,9 +32,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
-      # Two workers, not `pnpm test` (--runInBand): one process holding all suites outgrows the
-      # runner's ~2 GB Node heap.
-      - run: pnpm exec jest --config jest.config.cjs --maxWorkers=2
+      - run: pnpm test
 
   images:
     name: image ${{ matrix.name }} builds
