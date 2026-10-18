@@ -185,4 +185,5 @@ For support, email developer@metaupspace.com or create an issue in this reposito
 
 ---
 
-**Made with ❤️ by MetaUpSpace**
+**Made with ❤️ by SiddharthGautam09
+
