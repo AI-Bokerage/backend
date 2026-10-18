@@ -145,7 +145,7 @@ def main() -> None:
             "CLAMAV_HOST": host("clamav"), "CLAMAV_PORT": "3310",
             "DOCUMENT_STORAGE_DIR": "/data/documents",
             "GOOGLE_CLIENT_ID": "", "GOOGLE_CLIENT_SECRET": "",
-            "GOOGLE_REDIRECT_URI": f"{url}/api/v1/crm/google/callback",
+            "GOOGLE_REDIRECT_URI": f"{url}/api/v1/crm/integrations/google/callback",
             **{f"AI_{s.upper()}_URL": at(s) for s in AI_SERVICES},
             "AI_GATEWAY_KEY": k["backend"], "AI_GATEWAY_ADMIN_KEY": k["gateway.admin"],
             **{f"AI_{s.upper()}_KEY": k[f"backend.{s}"] for s in AI_SERVICES if s != "gateway"},
