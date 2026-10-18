@@ -30,6 +30,9 @@ jobs:
       - name: Build in-repo library (its dist/ is not committed)
         run: ./scripts/build-libs.sh
       - run: pnpm install --frozen-lockfile
+      # Always: with pnpm's cache restored, @prisma/client's postinstall (prisma generate) is skipped
+      # and the client comes out empty.
+      - run: pnpm exec prisma generate
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
