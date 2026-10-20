@@ -1,8 +1,8 @@
 # Deploying the CRM — on any platform
 
-The CRM is built to move between hosts without changes to the code. **Right now it runs on
-Railway: follow [RAILWAY.md](RAILWAY.md).** This page is the part that stays the same everywhere,
-plus how to run it on a plain Docker server (AWS EC2, any VPS, Oracle Cloud) later.
+The CRM is built to move between hosts without changes to the code. **It runs on AWS EC2: follow
+"On AWS EC2" below.** This page is also the part that stays the same everywhere. ([RAILWAY.md](RAILWAY.md)
+is kept for reference; Railway's free plan can't run the 6 core services.)
 
 ## The building blocks (identical on every platform)
 
@@ -69,27 +69,95 @@ to `main` after CI passes. That is the whole CD — no extra pipeline needed.
 
 ---
 
-## On a plain Docker server (AWS EC2, a VPS, Oracle Cloud)
+## On AWS EC2 (staging + production)
 
-`compose.yml` runs every service above on one machine, with Caddy in front for automatic HTTPS
-(`Caddyfile`). Only ports 80/443 are open.
+### How deploying works
 
-1. **Server:** Ubuntu 24.04 x86, at least **8 GB of memory** (the whole system needs ~4 GB),
-   40 GB disk, a fixed public IP. Firewall: 22 from your IP only, 80 and 443 from anywhere.
-   (EC2: `t3.large` in `ca-central-1` keeps data in Canada.)
-2. **Domain:** an A record pointing at the server.
-3. **Prepare it:** copy `server-setup.sh` over and run
-   `sudo bash server-setup.sh "<deploy user's SSH public key>"`. It installs Docker, adds swap,
-   rotates logs and creates the `deploy` user and `/opt/crm`.
-4. **Files:** copy `compose.yml`, `Caddyfile`, `deploy.sh`, `postgres/` and `clamav/` into
-   `/opt/crm`, plus the output of `make-env.py --host-template "{name}"` (`.env` and `services/`).
-5. **Images:** a Docker host pulls ready-made images, so something must build and publish them:
-   - a GitHub Actions workflow per repo that pushes to `ghcr.io/ai-bokerage/<image>:<commit>`
-     after CI, then runs `deploy.sh` over SSH (ask to have these added back when you move);
-   - or build on the server.
-6. **Deploy:** `./deploy.sh <backend|frontend|ai> <tag> <github-user>` with a registry token on
-   stdin. It pulls that part's images, migrates, restarts, waits until healthy, and puts the
-   previous version back if the new one isn't healthy within 5 minutes.
+```
+push to main (any repo) ──► CI: lint, types, tests, images build ── fails? nothing deploys
+        │ passes
+        ▼
+Deploy workflow ──► builds that repo's images, stores them on GitHub (ghcr.io), tagged with the commit
+        │
+        ▼
+STAGING server  ── automatic: pulls the new images, migrates, restarts, checks health
+        │           (not healthy within 5 minutes → puts the previous version back)
+        ▼
+PRODUCTION server ── after you click "Approve" in GitHub → the same, with the same images
+```
 
-**Before real clients:** daily disk snapshots (AWS Lifecycle Manager), an uptime check on the
-domain, real email (SMTP lines in `modauth.env`).
+Each repo deploys only its own part: `backend` → `app`, `modauth`, `tenant` (and copies the
+server files from this folder); `frontend` → `web`; `AI-service` → the 7 AI services. Everything
+runs on one server per environment with `compose.yml`; only Caddy (HTTPS) is open to the internet.
+
+### One-time setup (about an hour per environment; do it for staging, then production)
+
+**1. Create the server** — AWS console → EC2 → Launch instance:
+- Region **Canada (Central) `ca-central-1`** (client data stays in Canada).
+- Image **Ubuntu Server 24.04 LTS, 64-bit (x86)** — not a Graviton/`t4g` type (the images are x86).
+- Type **`t3.large`** (2 vCPU, 8 GB). Storage **40 GB gp3**. Key pair: your own, for logging in.
+- Security group: **22 from your IP only**; **80 and 443 from anywhere**.
+- Then **Elastic IPs → Allocate → Associate** it with the instance (a fixed address).
+
+**2. Domain** — at your DNS provider, an **A record**, e.g. `staging.crm.yourdomain.com` → the
+staging Elastic IP (later `crm.yourdomain.com` → production). Caddy gets HTTPS by itself.
+
+**3. Prepare the server** — make the key GitHub logs in with (no passphrase):
+```bash
+ssh-keygen -t ed25519 -N "" -C "github-deploy-staging" -f ~/.ssh/crm_deploy_staging
+scp -i <your-key.pem> deploy/server-setup.sh ubuntu@<elastic-ip>:
+ssh -i <your-key.pem> ubuntu@<elastic-ip> "sudo bash server-setup.sh '$(cat ~/.ssh/crm_deploy_staging.pub)'"
+```
+It installs Docker, adds swap, rotates logs, and creates the `deploy` user and `/opt/crm`.
+
+**4. Make and copy the settings** (from the `backend` repo, with `AI-service` next to it):
+```bash
+python3 deploy/make-env.py --stage staging --host-template "{name}" \
+  --ai-repo "../ai service" --domain staging.crm.yourdomain.com --out ~/crm-staging
+grep -rn CHANGE_ME ~/crm-staging        # fill these in (see "The variables" above)
+scp -r -i ~/.ssh/crm_deploy_staging ~/crm-staging/. deploy@<elastic-ip>:/opt/crm/
+```
+Keep `~/crm-staging` in a password manager. For **production** use `--stage production` and
+decide the two privacy approvals in `services/gateway.env`.
+
+**5. Tell GitHub about the server** — in **each** of the 3 repos (`backend`, `frontend`,
+`AI-service`): **Settings → Environments → New environment**:
+- `staging`, with these **environment secrets**:
+  - `SSH_HOST` — the Elastic IP
+  - `SSH_USER` — `deploy`
+  - `SSH_PRIVATE_KEY` — the contents of `~/.ssh/crm_deploy_staging` (the private key)
+  - `SSH_KNOWN_HOSTS` — the output of `ssh-keyscan -t ed25519 <elastic-ip>`
+- `production` — the same four for the production server, plus **Required reviewers** (you):
+  that is the "Approve" button.
+
+**6. First deploy, in this order** — GitHub → **Actions → Deploy → Run workflow** (branch `main`):
+1. `backend` — also copies the server files and starts Postgres, Redis, RabbitMQ, ClamAV, Caddy
+   (ClamAV's first start downloads its virus database, a few minutes);
+2. `AI-service`;
+3. `frontend`.
+
+Open `https://staging.crm.yourdomain.com/sign-in` and sign in with `SUPER_ADMIN_EMAIL` /
+`SUPER_ADMIN_PASSWORD` from `services/modauth.env`.
+
+### Every day
+- **Push or merge to `main`** → CI → staging updates by itself (about 10 minutes).
+- Check staging, then GitHub → **Actions → Deploy → the run → Review deployments → Approve**
+  to send the same images to production. Pull requests only run CI.
+
+### When something goes wrong
+- The failed run's log says why; an unhealthy new version was already rolled back by `deploy.sh`.
+- **Go back to an older version:** Actions → Deploy → an older successful run → **Re-run all jobs**.
+- **Look on the server:**
+  ```bash
+  ssh -i ~/.ssh/crm_deploy_staging deploy@<ip>
+  cd /opt/crm && docker compose ps                  # what is running
+  docker compose logs --tail 100 app                # one service's log
+  ```
+
+### Before real clients
+- **Backups:** EC2 → **Lifecycle Manager** → daily EBS snapshots, kept 14 days.
+- **Uptime check** on the domain (Route 53 health check or UptimeRobot).
+- **Real email:** the SMTP lines in `services/modauth.env` (e.g. Amazon SES in `ca-central-1`).
+
+**Cost (rough, on-demand):** one `t3.large` with disk and IP ≈ US$75/month; staging + production
+≈ US$150. Staging can be stopped outside working hours; a 1-year Savings Plan cuts ~30–40%.

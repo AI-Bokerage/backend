@@ -1,8 +1,8 @@
 name: CI
 
 # Every push to main and every pull request: the backend must lint, type-check, test, and its three
-# images (backend, auth, tenant) must still build. Railway deploys main only after this passes
-# ("Wait for CI", deploy/RAILWAY.md).
+# images (backend, auth, tenant) must still build. Deploy.yml runs after this passes on main
+# (staging, then production on approval — deploy/README.md).
 on:
   push:
     branches: [main]

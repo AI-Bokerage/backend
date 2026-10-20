@@ -1,0 +1,47 @@
+name: deploy to server
+
+# Called by deploy.yml: runs /opt/crm/deploy.sh on the environment's EC2 server for this repo's
+# images at the given tag. Secrets come from the GitHub Environment (staging / production):
+# SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS — see the backend repo's deploy/README.md.
+on:
+  workflow_call:
+    inputs:
+      environment: { required: true, type: string }
+      tag: { required: true, type: string }
+
+jobs:
+  deploy:
+    name: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      packages: read # the server pulls this repo's images with this run's token
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Copy server files (never touches .env or services/ on the server)
+        env:
+          TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+        run: |
+          rsync -rtz -e "ssh -i ~/.ssh/deploy_key" \
+            deploy/compose.yml deploy/Caddyfile deploy/deploy.sh deploy/postgres deploy/clamav \
+            "$TARGET:/opt/crm/"
+      - name: Deploy
+        env:
+          TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$REGISTRY_TOKEN" | ssh -i ~/.ssh/deploy_key "$TARGET" \
+            /opt/crm/deploy.sh backend "${{ inputs.tag }}" "${{ github.actor }}"

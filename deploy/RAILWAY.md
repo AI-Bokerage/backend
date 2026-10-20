@@ -1,5 +1,9 @@
 # Deploying the CRM on Railway (free trial)
 
+> **Not in use.** Railway's free plan allows fewer services than the CRM's 6 core ones, and it has
+> since dropped the config files (`railway/*.json`) in favour of its own format — the settings there
+> must be applied by hand or through its API. The CRM runs on AWS EC2: see [README.md](README.md).
+
 ## What to expect from "free"
 
 - Railway's trial is a **one-time $5 credit, for 30 days or until it runs out**. After that the
